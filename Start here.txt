@@ -1,0 +1,31 @@
+Open papergraph.exe. Your work is saved automatically in Data.
+
+Click a point, ◎ or □ to edit it on the right.
+The upper two thirds hold the proposition; the lower third holds notes.
+Only proposition text changes the size of a point. Notes can be as long as you need.
+Add a short Title above the proposition or arrow settings to label a point or relation.
+Press Space on the graph to show titles; press again to hide them.
+Titles stay at least 16 screen pixels and grow when zooming in. They never hide automatically and start hidden.
+Titles choose nearby spaces to avoid arrows, points and other titles. Pan and zoom keep their chosen positions; graph edits only move them for substantial obstructions.
+Titles do not change point size. Click a visible title to select its object.
+
+Left-drag empty canvas to pan. Use the wheel to zoom around the pointer.
+Use the arrow keys to select nearby points. Enter edits; Esc returns to the graph.
+While typing, arrow keys move the caret normally.
+Right-drag to select points and fully enclosed □. Drag the selection to move it.
+The bottom bar offers □, ◎ and Delete.
+Ctrl / Shift click adds to the selection. Esc clears the selection.
+R draws a □. Right-drag its border to move it; hold Shift to include its contents.
+Double-click a □ or ◎ to enter its board. Back / Esc returns.
+Space toggles only titles; holding it does not repeatedly toggle or enter a ◎.
+Double-click empty canvas to add a point. Drag its small handle to create a relation.
+Click an edge to choose an arrow symbol and a forward, reverse or two-way direction.
+Write notes for that relation in the Notes area below the arrow settings.
+Ctrl+G surrounds connected points with a ◎; the internal graph stays visible.
+Click the ring border for its notes. Drag the border to move the whole group.
+The ring grows with its contents. Right-click its border to ungroup.
+Z focuses the selection; press again to return. F fits the whole board.
+Ctrl+S saves. Ctrl+Z undoes. Ctrl+Y redoes. The sun / moon switches themes.
+
+Existing .yujian files still open. New files use .papergraph.
+

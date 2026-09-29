@@ -1,0 +1,59 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1440" height="1080" viewBox="0 0 1440 1080" role="img" aria-labelledby="title description">
+<title id="title">papergraph — Write a paper you can inspect</title>
+<desc id="description">Illustrated workflow showing a graph list, proposition nodes, relation arrows, a circular argument group, a rectangular section and a writing panel. Five steps cover creating, writing, connecting, grouping and collaborating with an external agent.</desc>
+<defs>
+ <marker id="arrow" viewBox="0 0 12 12" refX="10" refY="6" markerWidth="9" markerHeight="9" orient="auto-start-reverse"><path d="M1 1 L11 6 L1 11 Z" fill="#596f86"/></marker>
+ <style>text{font-family:Segoe UI,Arial,sans-serif;fill:#25394b}.muted{fill:#63768a}.small{font-size:16px}.body{font-size:19px}.label{font-size:18px;font-weight:600}.num{font-size:18px;font-weight:700;fill:#fff}.line{fill:none;stroke:#596f86;stroke-width:2.5;marker-end:url(#arrow)}</style>
+</defs>
+<rect width="1440" height="1080" fill="#f5f7fb"/>
+<text x="56" y="66" font-size="24" font-weight="700">papergraph</text>
+<text x="56" y="118" font-size="39" font-weight="650">Write a paper you can inspect.</text>
+<text x="56" y="151" class="body muted">Make claims visible. Check their connections. Write together with an agent.</text>
+<rect x="56" y="184" width="1328" height="586" rx="16" fill="#fff" stroke="#d6dfe9"/>
+<path d="M56 237 H1384" stroke="#d6dfe9"/>
+<text x="78" y="216" class="small">File</text><text x="125" y="216" class="small">Edit</text><text x="173" y="216" class="small">Insert</text><text x="231" y="216" class="small">View</text>
+<text x="323" y="216" class="label">My research argument</text><text x="1320" y="216" class="label">Fit</text>
+<rect x="247" y="238" width="791" height="531" fill="#f7f9fc"/>
+<path d="M247 237 V770 M1038 237 V770" stroke="#d6dfe9"/>
+<text x="78" y="277" class="label muted">Graphs</text><text x="206" y="278" font-size="24">+</text>
+<rect x="68" y="296" width="167" height="46" rx="8" fill="#e8eef7"/>
+<text x="81" y="325" class="small" fill="#356fbd">My research argument</text>
+<text x="81" y="377" class="small muted">Related work</text><text x="81" y="418" class="small muted">Discussion</text>
+<circle cx="171" cy="265" r="15" fill="#356fbd"/><text x="166" y="271" class="num">1</text>
+<rect x="280" y="285" width="725" height="446" rx="14" fill="none" stroke="#aaa0bc" stroke-width="2"/>
+<text x="301" y="315" class="small muted">A section of the paper</text>
+<circle cx="539" cy="498" r="148" fill="none" stroke="#8e83a9" stroke-width="2.5"/>
+<text x="433" y="679" class="small muted">A connected argument</text>
+<path d="M455 431 L559 488" class="line"/><path d="M455 570 L559 513" class="line"/>
+<path d="M688 498 L832 498" class="line"/>
+<path d="M856 631 L856 530" fill="none" stroke="#b07e70" stroke-width="2.5"/><path d="M844 530 H868" stroke="#b07e70" stroke-width="4"/>
+<circle cx="439" cy="422" r="15" fill="#517e91"/><circle cx="439" cy="579" r="15" fill="#517e91"/>
+<circle cx="580" cy="501" r="22" fill="#706489"/><circle cx="580" cy="501" r="29" fill="none" stroke="#356fbd" stroke-width="2"/>
+<circle cx="856" cy="498" r="21" fill="#3e627f"/><circle cx="856" cy="648" r="15" fill="#b07e70"/>
+<text x="393" y="394" class="label">Evidence A</text><text x="393" y="617" class="label">Evidence B</text>
+<text x="549" y="457" class="label">Claim</text><text x="818" y="459" class="label">Main thesis</text><text x="817" y="687" class="label">Limitation</text>
+<text x="722" y="483" class="small muted">supports</text><text x="871" y="588" class="small muted">challenges</text>
+<circle cx="606" cy="480" r="15" fill="#356fbd"/><text x="601" y="486" class="num">2</text>
+<circle cx="770" cy="513" r="15" fill="#356fbd"/><text x="765" y="519" class="num">3</text>
+<circle cx="678" cy="376" r="15" fill="#356fbd"/><text x="673" y="382" class="num">4</text>
+<circle cx="1065" cy="272" r="7" fill="#706489"/><text x="1083" y="278" class="small muted">Proposition</text>
+<text x="1060" y="324" font-size="25" font-weight="600">Claim</text>
+<path d="M1060 343 H1360" stroke="#d6dfe9"/>
+<text x="1060" y="378" class="body"><tspan x="1060">State one claim clearly.</tspan><tspan x="1060" dy="32">Make it specific enough</tspan><tspan x="1060" dy="32">to check and discuss.</tspan></text>
+<text x="1060" y="530" class="small muted">Select a point to edit its text.</text>
+<path d="M1060 567 H1360" stroke="#d6dfe9"/>
+<text x="1060" y="597" class="small muted">Notes</text>
+<text x="1060" y="631" class="body"><tspan x="1060">Source: author, year, page</tspan><tspan x="1060" dy="30">Evidence: what supports it?</tspan><tspan x="1060" dy="30">Limits: what remains unclear?</tspan></text>
+<text x="78" y="751" font-size="12" class="muted">ILLUSTRATED WORKSPACE · SYNTHETIC EXAMPLE</text>
+<g transform="translate(56 811)"><text y="0" class="label">1  Create a graph</text><text y="30" class="small muted"><tspan x="0">Click + beside Graphs.</tspan><tspan x="0" dy="24">Give your paper a title.</tspan></text></g>
+<g transform="translate(397 811)"><text y="0" class="label">2  Write propositions</text><text y="30" class="small muted"><tspan x="0">Double-click the canvas.</tspan><tspan x="0" dy="24">Keep sources in Notes.</tspan></text></g>
+<g transform="translate(738 811)"><text y="0" class="label">3  Explain relations</text><text y="30" class="small muted"><tspan x="0">Drag a connection handle.</tspan><tspan x="0" dy="24">Select an arrow to add notes.</tspan></text></g>
+<g transform="translate(1071 811)"><text y="0" class="label">4  Organize the argument</text><text y="30" class="small muted"><tspan x="0">Use regions or connected rings.</tspan><tspan x="0" dy="24">A ring can connect as a whole.</tspan></text></g>
+<rect x="56" y="906" width="1328" height="125" rx="14" fill="#e9eff7"/>
+<circle cx="90" cy="943" r="15" fill="#356fbd"/><text x="85" y="949" class="num">5</text>
+<text x="116" y="950" font-size="23" font-weight="600">Work with an external agent. Keep the review in your hands.</text>
+<text x="80" y="984" class="body">Agent: read, search, add independent propositions.    Author: inspect evidence, revise claims, connect the argument.</text>
+<text x="80" y="1011" class="small muted">Current local API · no built-in model or Zotero search · agent additions do not create relations</text>
+<text x="56" y="1061" class="small muted">Pan: left-drag     Zoom: mouse wheel     Select: right-drag     Show titles: Space     Fit: F</text>
+</svg>
+

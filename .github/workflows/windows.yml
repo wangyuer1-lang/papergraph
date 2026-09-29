@@ -1,0 +1,22 @@
+name: Windows build and self-tests
+on: [push, pull_request]
+permissions:
+  contents: read
+jobs:
+  test:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+      - run: dotnet build Papergraph.csproj -c Release -o artifacts/build
+      - name: Run isolated desktop self-tests
+        shell: pwsh
+        run: |
+          $process = Start-Process ./artifacts/build/papergraph.exe -ArgumentList '--self-test' -WindowStyle Hidden -Wait -PassThru
+          if ($process.ExitCode -ne 0) {
+            Get-Content ./artifacts/build/test-failure.txt
+            throw 'Self-tests failed'
+          }
+          Get-Content ./artifacts/build/test-results.txt
