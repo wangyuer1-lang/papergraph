@@ -32,7 +32,7 @@ public static class ViewportTests
         Check(!window.RouteGraphWheel(0,new Point(400,300)),"Horizontal-only wheel cannot start a zoom");Settle();
         Check((graph.Zoom,graph.Offset)==before,"Wheel outside the canvas leaves the camera unchanged");
         graph.IsPreview=true;Check(!window.RouteGraphWheel(120,new Point(400,300)),"Temporary space preview remains read-only");graph.IsPreview=false;
-        graph.SetView(.10,new Point(40,20));Wheel(120,new Point(300,200));
+        graph.SetView(.10,new Point(40,20));Wheel(-120,new Point(300,200));Check(graph.Zoom<.10,"Wheel can zoom out past the old minimum");Wheel(120,new Point(300,200));
         graph.SetView(3.2,new Point(40,20));Wheel(-120,new Point(300,200));
         Check(graph.Document.Serialize()==original,"Zoom never changes point, edge or frame data");
         window.Close();File.AppendAllText(Path.Combine(AppContext.BaseDirectory,"test-results.txt"),"PASS: pointer-anchored wheel zoom, mixed-selection/footer zoom, post-drag zoom, editor/menu isolation, zoom-limit reversal and document preservation.\n");

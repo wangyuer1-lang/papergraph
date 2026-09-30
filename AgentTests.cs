@@ -32,6 +32,17 @@ public static class AgentTests
         Action("Undo");Check(window.Graph.Document.Nodes.Count==2&&window.Graph.Document.Node("a")!.Note=="Unsaved live note","One undo reverses the entire agent batch and retains prior user edits");
         Action("Redo");Check(window.Graph.Document.Serialize()==after,"Redo restores the exact agent batch");
         Reject(new{operation="addNodes",requestId=Guid.NewGuid().ToString(),expectedDocument=path,expectedRevision=AgentProtocol.Revision(window.Graph.Document),nearNodeId="a",nodes=new[]{new{body="Valid"},new{body=""}}},"Malformed batch is atomic");
+        var preEdit=window.Graph.Document.Serialize();
+        var edit=new{operation="editGraph",requestId=Guid.NewGuid().ToString(),expectedDocument=path,expectedRevision=AgentProtocol.Revision(window.Graph.Document),nodes=new object[]{new{id="a",body="Updated existing"},new{id="new-node",body="New connected point",x=700,y=800}},edges=new[]{new{id="new-edge",from="a",to="new-node",direction="both"}},regions=new[]{new{id="new-region",body="Frame",x=500,y=600,width=900,height=900}}};
+        Read(edit);var edited=window.Graph.Document.Serialize();
+        Check(window.Graph.Document.Node("a")!.Title=="Updated existing"&&window.Graph.Document.Node("new-node")!.X==700&&window.Graph.Document.Edges.Last().Direction=="both","Graph edits update content, position, connections and frames");
+        Check(File.ReadAllText(path)==edited,"Graph edits persist before acknowledgement");Read(edit);Check(window.Graph.Document.Serialize()==edited,"Graph edit retries are idempotent");
+        Action("Undo");Check(window.Graph.Document.Serialize()==preEdit,"Whole graph edit undo");Reject(edit,"Retry after undo cannot replay edits");Action("Redo");Check(window.Graph.Document.Serialize()==edited,"Whole graph edit redo");
+        Reject(new{operation="editGraph",requestId=Guid.NewGuid().ToString(),expectedDocument=path,expectedRevision=AgentProtocol.Revision(window.Graph.Document),nodes=new[]{new{id="a",body="Must not commit"}},edges=new[]{new{id="bad",from="a",to="missing"}}},"Invalid edge rejects the entire graph edit");
+        Reject(new{operation="editGraph",requestId=Guid.NewGuid().ToString(),expectedDocument=path,expectedRevision="stale",nodes=new[]{new{id="a",body="Must not commit"}}},"Graph edits reject stale snapshots");
+        Read(new{operation="editGraph",requestId=Guid.NewGuid().ToString(),expectedDocument=path,expectedRevision=AgentProtocol.Revision(window.Graph.Document),groups=new[]{new{id="new-ring",members=new[]{"a","new-node"}}},edges=new[]{new{id="ring-link",from="new-ring",to="b"}}});
+        Check(window.Graph.Document.Node("new-ring")!.Kind=="circle"&&window.Graph.Document.Node("a")!.Parent=="new-ring","Connected group creation with external relation");Action("Undo");Check(window.Graph.Document.Serialize()==edited,"Group creation and external edge undo together");
+        Reject(new{operation="editGraph",requestId=Guid.NewGuid().ToString(),expectedDocument=path,expectedRevision=AgentProtocol.Revision(window.Graph.Document),groups=new[]{new{id="bad-ring",members=new[]{"b","new-node"}}}},"Disconnected group is rejected atomically");
         window.Close();File.AppendAllText(Path.Combine(AppContext.BaseDirectory,"test-results.txt"),"PASS: agent live snapshot/search, Unicode, revision and document conflicts, atomic independent nodes, provenance notes, durable saves, idempotent retry, whole-batch undo/redo.\n");
     }
 }

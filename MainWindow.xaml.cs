@@ -29,7 +29,7 @@ public partial class MainWindow : Window
     public MainWindow(string directory)
     {
         InitializeComponent();dataDir=directory;Directory.CreateDirectory(dataDir);LoadInitial();dirty|=GraphGroups.ExpandLegacy(doc);dirty|=doc.MaterializeRegions();Graph.Document=doc;
-        try{var settings=Storage.CompatiblePath(dataDir,"settings.json","\u754c\u9762.json");if(File.Exists(settings))dark=JsonDocument.Parse(File.ReadAllText(settings)).RootElement.GetProperty("dark").GetBoolean();}catch{}
+        LoadViewSettings();
         InitializeLibrary();ApplyTheme();foreach(var editor in new[]{DocumentTitleBox,CaptionBox,PropositionBox,NotesBox})ConfigureTextMenu(editor);SourceInitialized+=(s,e)=>NativeTitleTheme();
         Graph.SelectionChanged+=SelectionChanged;Graph.BeforeChange+=Remember;Graph.Changed+=()=>Changed();Graph.EnterCircle+=Enter;Graph.CreateNode+=AddNode;Graph.CreateRegion+=AddRegion;Graph.Connect+=AddEdge;
         Graph.EnterRegion+=EnterRegion;Graph.LayoutFinished+=()=>Changed(false);Graph.LayoutFailed+=message=>Notify("Could not arrange the graph: "+message);
@@ -37,8 +37,9 @@ public partial class MainWindow : Window
         PreviewMouseWheel+=(s,e)=>{if(RouteGraphWheel(e.Delta,e.GetPosition(Graph)))e.Handled=true;};
         Graph.EditRequested+=()=>{if(Graph.Selected.Count==1){SelectionChanged();PropositionBox.Focus();}};Graph.ContextRequested+=()=>ShowContext(Graph,PlacementMode.MousePoint);
         Graph.MouseUp+=(s,e)=>Dispatcher.BeginInvoke(EnsureSelectedVisible,DispatcherPriority.Loaded);
-        FitButton.Click+=(s,e)=>{Graph.Focus();Graph.Fit();};NewNodeButton.Click+=(s,e)=>AddNode(FreePosition());BackButton.Click+=(s,e)=>Leave();BuildMenus();
-        ThemeButton.Click+=(s,e)=>{dark=!dark;ApplyTheme();try{File.WriteAllText(Path.Combine(dataDir,"settings.json"),JsonSerializer.Serialize(new{dark}));}catch{}};
+        FitButton.Click+=(s,e)=>{Graph.Focus();Graph.Fit();};FitEditButton.Click+=(s,e)=>{Graph.Focus();Graph.Fit(editing:true);};NewNodeButton.Click+=(s,e)=>AddNode(FreePosition());BackButton.Click+=(s,e)=>Leave();BuildMenus();
+        InitializeConnectionControls();
+        ThemeButton.Click+=(s,e)=>{dark=!dark;ApplyTheme();SaveViewSettings();};
         MoreButton.Click+=(s,e)=>ShowContext(MoreButton,PlacementMode.Bottom);ColorButton.Click+=(s,e)=>{if(editorKind=="node"&&editorId!=null)ShowColors(ColorButton,editorId);};
         LinkButton.Click+=(s,e)=>{if(editorKind=="node"&&editorId!=null){Graph.LinkMode=true;Graph.LinkStart=editorId;Graph.Cursor=Cursors.Cross;Graph.Focus();}};
         RegionButton.Click+=(s,e)=>RegionAroundSelection();CircleButton.Click+=(s,e)=>CreateCircle();DeleteButton.Click+=(s,e)=>DeleteSelection();CustomRelationButton.Click+=(s,e)=>{if(editorKind=="edge"&&editorId!=null)CustomRelation(editorId);};ToastUndo.Click+=(s,e)=>Undo();
@@ -68,6 +69,11 @@ public partial class MainWindow : Window
         // Canvas overlays are siblings of Graph, so their wheel events never reach Graph.OnMouseWheel.
         if(delta==0||Graph.IsPreview||position.X<0||position.Y<0||position.X>=Graph.ActualWidth||position.Y>=Graph.ActualHeight)return false;
         Graph.ZoomBy(Math.Exp(delta*.00135),position);return true;
+    }
+    internal bool RouteFit(Key key,ModifierKeys modifiers,IInputElement? focused)
+    {
+        if(key!=Key.F||modifiers is not (ModifierKeys.None or ModifierKeys.Shift)||focused is TextBoxBase or MenuItem or System.Windows.Controls.ContextMenu||GraphList.IsKeyboardFocusWithin||Graph.IsPreview||Graph.IsInteracting)return false;
+        Graph.Fit(editing:modifiers==ModifierKeys.Shift);return true;
     }
     internal bool RouteNodeNavigation(Key key,ModifierKeys modifiers,IInputElement? focused)
     {
@@ -186,7 +192,8 @@ public partial class MainWindow : Window
         Item(FileMenu,"New paper",NewDocument);Item(FileMenu,"Open…",OpenDocument,"Ctrl+O");Item(FileMenu,"Save",()=>Save(),"Ctrl+S");Item(FileMenu,"Save as…",SaveCopy);Item(FileMenu,"Show in folder",ShowGraphFolder);Item(FileMenu,"Export Markdown…",Export);
         var undoItem=Item(EditMenu,"Undo",Undo,"Ctrl+Z");var redoItem=Item(EditMenu,"Redo",Redo,"Ctrl+Y");Item(EditMenu,"Delete selection",DeleteSelection,"Delete");EditMenu.SubmenuOpened+=(s,e)=>{undoItem.IsEnabled=undo.Count>0;redoItem.IsEnabled=redo.Count>0;};
         Item(InsertMenu,"Proposition",()=>AddNode(FreePosition()),"Ctrl+N");SymbolItem(InsertMenu,"frame",BeginRegion,"R");SymbolItem(InsertMenu,"circle",CreateCircle,"Ctrl+G");
-        Item(ViewMenu,"Fit to view",()=>{Graph.Focus();Graph.Fit();},"F");Item(ViewMenu,"Focus selection / return",()=>{Graph.Focus();Graph.ToggleDetail();},"Z");Item(ViewMenu,"Arrange graph",ArrangeGraph);Item(ViewMenu,"Switch theme",()=>ThemeButton.RaiseEvent(new RoutedEventArgs(Button.ClickEvent)));
+        Item(ViewMenu,"Fit all",()=>{Graph.Focus();Graph.Fit();},"F");Item(ViewMenu,"Fit for editing",()=>{Graph.Focus();Graph.Fit(editing:true);},"Shift+F");Item(ViewMenu,"Focus selection / return",()=>{Graph.Focus();Graph.ToggleDetail();},"Z");Item(ViewMenu,"Arrange graph",ArrangeGraph);Item(ViewMenu,"Switch theme",()=>ThemeButton.RaiseEvent(new RoutedEventArgs(Button.ClickEvent)));
+        BuildConnectionMenu();
         Item(HelpMenu,"Controls and symbols",Help);
     }
     void ShowContext(FrameworkElement target,PlacementMode placement)
@@ -213,7 +220,7 @@ public partial class MainWindow : Window
         {
             Item(menu,"→ Forward",()=>SetDirection(edge,"forward"));Item(menu,"← Reverse",()=>SetDirection(edge,"reverse"));Item(menu,"↔ Both directions",()=>SetDirection(edge,"both"));menu.Items.Add(new Separator());foreach(var label in GraphStyle.Relations){var value=label;var item=Item(menu,label,()=>SetRelation(edge,value));item.Icon=new EdgeGlyph{Label=label,Stroke=Ui("TextBrush"),Surface=Ui("SurfaceBrush")};}Item(menu,"Custom…",()=>CustomRelation(edge));Item(menu,"Delete",DeleteSelection);
         }
-        else{var center=Graph.ToWorld(Mouse.GetPosition(Graph));Item(menu,"New proposition",()=>AddNode(center));SymbolItem(menu,"frame",BeginRegion,"R");Item(menu,"Fit to view",()=>Graph.Fit(),"F");Item(menu,"Arrange graph",ArrangeGraph);Item(menu,"Undo",Undo,"Ctrl+Z",undo.Count>0);}
+        else{var center=Graph.ToWorld(Mouse.GetPosition(Graph));Item(menu,"New proposition",()=>AddNode(center));SymbolItem(menu,"frame",BeginRegion,"R");Item(menu,"Fit all",()=>Graph.Fit(),"F");Item(menu,"Fit for editing",()=>Graph.Fit(editing:true),"Shift+F");Item(menu,"Arrange graph",ArrangeGraph);Item(menu,"Undo",Undo,"Ctrl+Z",undo.Count>0);}
         menu.IsOpen=true;
     }
     void SetRelation(string id,string value){var edge=doc.Edges.FirstOrDefault(e=>e.Id==id);if(edge==null||GraphStyle.RelationName(edge.Label)==value)return;if(doc.Edges.Any(e=>e.Id!=id&&e.From==edge.From&&e.To==edge.To&&GraphStyle.RelationName(e.Label)==value&&e.Direction==edge.Direction)){Notify("This relation already exists");return;}Remember();edge.Label=value;Changed();}
@@ -278,7 +285,7 @@ public partial class MainWindow : Window
     {
         var dialog=new Window{Title=title,Width=360,Height=175,ResizeMode=ResizeMode.NoResize,WindowStartupLocation=WindowStartupLocation.CenterOwner,Owner=this,FontFamily=FontFamily,FontSize=14,Background=Ui("SurfaceBrush"),Foreground=Ui("TextBrush"),ShowInTaskbar=false,Resources=Resources};var panel=new StackPanel{Margin=new Thickness(22)};var input=new TextBox{Text=initial,MinHeight=40,BorderThickness=new Thickness(1)};ConfigureTextMenu(input);panel.Children.Add(input);var actions=new StackPanel{Orientation=Orientation.Horizontal,HorizontalAlignment=HorizontalAlignment.Right,Margin=new Thickness(0,14,0,0)};actions.Children.Add(new Button{Content="Cancel",IsCancel=true});var ok=new Button{Content="OK",IsDefault=true,Background=Ui("HoverBrush")};ok.Click+=(s,e)=>{if(!string.IsNullOrWhiteSpace(input.Text))dialog.DialogResult=true;};actions.Children.Add(ok);panel.Children.Add(actions);dialog.Content=panel;dialog.Loaded+=(s,e)=>{input.Focus();input.SelectAll();};return dialog.ShowDialog()==true?input.Text.Trim():null;
     }
-    void Help(){MessageBox.Show(this,"Click a point, □ or ◎ to edit its proposition and notes.\nThe top two thirds hold the proposition; the bottom third holds notes.\nOnly proposition text changes the point size.\nAdd a short Title to a point or relation to label it on the graph.\nTitles stay readable when zooming out and grow when zooming in.\nPress Space to show or hide all titles.\n\nLeft-drag empty canvas: pan · Wheel: zoom · F: fit\nArrow keys: select a nearby point · Enter: edit\nWhile typing, arrows move the caret · Esc: return to graph\nRight-drag: select · Drag the selection: move\nBottom actions: □ / ◎ / Delete\nCtrl or Shift click: add to selection\nR: draw a □ · Right-drag its border: move\nShift + right-drag: move □ with contents\nRight-drag the lower-right handle: resize □\nDouble-click a □ or ◎: enter its board\nBack / Esc: return · Space: show / hide titles\nZ: focus selection; press again to return\nDrag a small connection handle to create a relation\nClick an edge to change its arrows and write notes below\nCtrl+G: enclose connected points in a ring · Drag its border: move together\nRight-click the ring: ungroup\n\nSolid triangle: Support · Bar: Opposition\nDouble arrow: Inference · Diamond: Qualification\nHollow triangle: Definition · Circle: Association\n\nCtrl+S: save · Ctrl+Z: undo · Ctrl+Y: redo\nUse the sun / moon button to switch themes.","Controls and symbols");}
+    void Help(){MessageBox.Show(this,"Click a point, □ or ◎ to edit its proposition and notes.\nThe top two thirds hold the proposition; the bottom third holds notes.\nOnly proposition text changes the point size.\nAdd a short Title to a point or relation to label it on the graph.\nTitles stay readable when zooming out and grow when zooming in.\nPress Space to show or hide all titles.\n\nLeft-drag empty canvas: pan · Wheel: zoom · F: fit all · Shift+F: fit for editing\nArrow keys: select a nearby point · Enter: edit\nWhile typing, arrows move the caret · Esc: return to graph\nRight-drag: select · Drag the selection: move\nBottom actions: □ / ◎ / Delete\nCtrl or Shift click: add to selection\nR: draw a □ · Right-drag its border: move\nShift + right-drag: move □ with contents\nRight-drag the lower-right handle: resize □\nDouble-click a □ or ◎: enter its board\nBack / Esc: return · Space: show / hide titles\nZ: focus selection; press again to return\nDrag a small connection handle to create a relation\nClick an edge to change its arrows and write notes below\nCtrl+G: enclose connected points in a ring · Drag its border: move together\nRight-click the ring: ungroup\n\nSolid triangle: Support · Bar: Opposition\nDouble arrow: Inference · Diamond: Qualification\nHollow triangle: Definition · Circle: Association\n\nCtrl+S: save · Ctrl+Z: undo · Ctrl+Y: redo\nUse the sun / moon button to switch themes.","Controls and symbols");}
     void Keys(object sender,KeyEventArgs e)
     {
         if(Keyboard.FocusedElement is MenuItem||MainMenu.Items.OfType<MenuItem>().Any(m=>m.IsSubmenuOpen))return;
@@ -286,6 +293,7 @@ public partial class MainWindow : Window
         if(ctrl&&e.Key==Key.S){Save();e.Handled=true;return;}
         if(e.Key==Key.Escape){if(Graph.CancelBoxSelection()){}else if(Graph.DrawingRegion){Graph.DrawingRegion=false;Graph.Cursor=Cursors.Arrow;Toast.Visibility=Visibility.Collapsed;}else if(Graph.LinkMode)CancelLink();else if(typing)Graph.Focus();else if(Graph.GroupSelection)ClearSelection();else if(Graph.Scope!=null||Graph.BoardRegion!=null)Leave();else if(editorId!=null||Graph.SelectionCount>0)ClearSelection();e.Handled=true;return;}
         if(typing||GraphList.IsKeyboardFocusWithin)return;
+        if(RouteFit(e.Key,Keyboard.Modifiers,Keyboard.FocusedElement)){e.Handled=true;return;}
         if(RouteNodeNavigation(e.Key,Keyboard.Modifiers,Keyboard.FocusedElement)){e.Handled=true;return;}
         if(RouteTitleToggle(e.Key,Keyboard.Modifiers,Keyboard.FocusedElement,e.IsRepeat)){e.Handled=true;return;}
         if(ctrl&&e.Key==Key.Z)Undo();else if(ctrl&&e.Key==Key.Y)Redo();else if(ctrl&&e.Key==Key.N)AddNode(FreePosition());else if(ctrl&&e.Key==Key.O)OpenDocument();
@@ -293,7 +301,7 @@ public partial class MainWindow : Window
         else if(ctrl&&e.Key==Key.G){if(shift)BeginRegion();else CreateCircle();}
         else if(e.Key==Key.R&&!ctrl)BeginRegion();
         else if(e.Key==Key.Enter&&editorId!=null)FocusCard();else if(e.Key==Key.L){Graph.LinkMode=true;Graph.LinkStart=Graph.Selected.Count==1?Graph.Selected.First():null;Graph.Cursor=Cursors.Cross;}
-        else if(e.Key==Key.V)CancelLink();else if(e.Key==Key.F)Graph.Fit();else if(e.Key==Key.Z&&!ctrl)Graph.ToggleDetail(Graph.IsMouseOver?Mouse.GetPosition(Graph):null);else if(e.Key==Key.Delete)DeleteSelection();else return;e.Handled=true;
+        else if(e.Key==Key.V)CancelLink();else if(e.Key==Key.Z&&!ctrl)Graph.ToggleDetail(Graph.IsMouseOver?Mouse.GetPosition(Graph):null);else if(e.Key==Key.Delete)DeleteSelection();else return;e.Handled=true;
     }
     void OnClosing(object? sender,CancelEventArgs e){Graph.CancelLayout();saveTimer.Stop();if(!Save())e.Cancel=MessageBox.Show(this,"Your changes have not been saved. Close anyway?","papergraph",MessageBoxButton.YesNo,MessageBoxImage.Warning)!=MessageBoxResult.Yes;}
 }

@@ -13,6 +13,7 @@ public static class NavigationTests
         var directory=Path.Combine(Path.GetTempPath(),"papergraph-navigation-"+Guid.NewGuid().ToString("N"));Directory.CreateDirectory(directory);
         var doc=new GraphDocument{Nodes=[Point("center",450,325),Point("left",250,325),Point("right",650,325),Point("up",450,125),Point("down",450,525),Point("sideways",451,390),new(){Id="group",Kind="circle",Expanded=true,X=822,Y=247,Caption="Argument"},Point("inside-a",800,325,"group"),Point("inside-b",1000,325,"group")],Edges=[new(){Id="edge",From="center",To="right"},new(){Id="internal",From="inside-a",To="inside-b"}],Regions=[new(){Id="frame",IsAbsolute=true,X=350,Y=220,Width=390,Height=160}]};
         var file=Path.Combine(directory,"navigation.papergraph");Storage.Save(file,doc);File.WriteAllText(Path.Combine(directory,"recent.txt"),"navigation.papergraph");
+        var savedFrame=doc.Regions[0];doc.Regions.Clear();Storage.Save(file,doc);
         var window=new MainWindow(directory);var graph=window.Graph;graph.Measure(new Size(900,650));graph.Arrange(new Rect(0,0,900,650));graph.SetView(1,new Point());
         void Select(string id){graph.ClearAllSelection();graph.Selected=[id];window.SelectionChanged();}
         void Press(Key key){Check(window.RouteNodeNavigation(key,ModifierKeys.None,graph),"Unmodified graph arrow is handled");}
@@ -30,10 +31,18 @@ public static class NavigationTests
         graph.BeginSelectionMove();Check(!window.RouteNodeNavigation(Key.Right,ModifierKeys.None,graph),"Dragging is not interrupted by node navigation");graph.EndSelectionMove();
         graph.LinkMode=true;Check(!window.RouteNodeNavigation(Key.Right,ModifierKeys.None,graph),"Connection gestures retain their endpoints");graph.LinkMode=false;
         graph.ClearAllSelection();graph.SelectedEdge="edge";Press(Key.Left);Check(graph.Selected.SetEquals(["center"])&&graph.SelectedEdge==null,"Relation selection navigates from its midpoint to an endpoint");
-        graph.ClearAllSelection();graph.Selected=["center","right"];graph.SelectedRegions=["frame"];graph.SelectionBox=new Rect(200,100,600,500);Press(Key.Left);Check(graph.Selected.SetEquals(["left"])&&graph.SelectedRegions.Count==0&&graph.SelectionBox==null,"An arrow replaces mixed selection with one directional point");
+        graph.Document.Regions.Add(savedFrame);graph.RefreshData();Storage.Save(file,graph.Document);
+        graph.ClearAllSelection();graph.Selected=["center","right"];graph.SelectedRegions=["frame"];graph.SelectionBox=new Rect(200,100,600,500);Press(Key.Left);Check(graph.Selected.SetEquals(["center","right"])&&graph.SelectedRegions.Count==1,"Mixed selection at a frame boundary cannot escape");
         graph.SetBoard("group",null);graph.ClearAllSelection();graph.SetView(1,new Point());Press(Key.Right);Press(Key.Right);Check(graph.Selected.SetEquals(["inside-b"]),"Navigation inside a double ring stays on its board");Press(Key.Down);Check(graph.Selected.SetEquals(["inside-b"]),"Hidden outer points are never selected");
         graph.SetBoard(null,"frame");graph.ClearAllSelection();graph.SetView(1,new Point());Press(Key.Right);Press(Key.Right);Check(graph.Selected.SetEquals(["right"]),"Frame-board navigation only visits included points");Press(Key.Right);Check(graph.Selected.SetEquals(["right"]),"Frame navigation cannot escape to an outside point");
+        doc.Regions.Add(savedFrame);
         Check(graph.Document.Serialize()==doc.Serialize(),"Keyboard selection and camera movement never mutate saved content or point positions");window.Close();Check(GraphDocument.Parse(File.ReadAllText(file)).Serialize()==doc.Serialize(),"Navigation leaves the saved document unchanged");
+        graph=new GraphSurface();graph.Document=new GraphDocument{Nodes=[Point("a",100,100),Point("overlap",200,100),Point("other",400,100),Point("outside",700,100)],Regions=[new(){Id="a-frame",IsAbsolute=true,X=0,Y=0,Width=260,Height=200},new(){Id="b-frame",IsAbsolute=true,X=180,Y=0,Width=350,Height=200}]};
+        graph.RefreshData();graph.Selected=["a"];Check(graph.NavigateNodes(new Vector(1,0))&&graph.Selected.SetEquals(["overlap"]),"Arrow may reach overlap within its starting frame");
+        Check(!graph.NavigateNodes(new Vector(1,0))&&graph.Selected.SetEquals(["overlap"]),"Overlap cannot bridge keyboard navigation to another frame");
+        graph.Selected=["other"];Check(graph.NavigateNodes(new Vector(-1,0))&&graph.Selected.SetEquals(["overlap"]),"A newly clicked point changes the navigation frame");
+        Check(!graph.NavigateNodes(new Vector(-1,0)),"Reverse navigation cannot leave the second frame through overlap");
+        graph.Selected=["outside"];Check(!graph.NavigateNodes(new Vector(-1,0)),"Unframed points cannot jump into a frame");
         graph=new GraphSurface();Check(!graph.NavigateNodes(new Vector(1,0)),"An empty board safely ignores navigation");
         File.AppendAllText(Path.Combine(AppContext.BaseDirectory,"test-results.txt"),"PASS: spatial arrow-key selection, initial viewport anchor, directional preference, double rings, boundary behavior, automatic camera reveal, editor synchronization, typing/menu/modifier isolation, mixed selection, nested board isolation and unchanged documents.\n");
     }

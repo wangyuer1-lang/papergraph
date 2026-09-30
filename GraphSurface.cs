@@ -6,6 +6,7 @@ namespace Papergraph;
 
 public sealed class GraphSurface : FrameworkElement
 {
+    internal const double MinimumZoom=1e-9,EditingMinimumZoom=.10,MaximumZoom=3.2;
     GraphDocument document=new();string? scope,boardRegion;
     public GraphDocument Document {get=>document;set{CancelLayout();document=value;RefreshData();}}
     public string? Scope {get=>scope;set=>SetBoard(value,null);}
@@ -30,6 +31,23 @@ public sealed class GraphSurface : FrameworkElement
     public bool DrawingRegion {get;set;}
     bool showCaptions;
     public bool ShowCaptions {get=>showCaptions;set{if(showCaptions==value)return;showCaptions=value;captions.Clear();captionsDirty=true;InvalidateVisual();}}
+    ConnectionDisplay connectionDisplay;
+    HashSet<string>? allowedEdges;
+    public ConnectionDisplay ConnectionDisplay
+    {
+        get=>connectionDisplay;
+        set
+        {
+            if(!Enum.IsDefined(value))throw new ArgumentOutOfRangeException(nameof(value));
+            if(connectionDisplay==value)return;
+            connectionDisplay=value;UpdateConnectionFilter();hoverEdge=null;
+            captions.Clear();captionsDirty=geometryDirty=true;InvalidateVisual();
+            if(SelectedEdge!=null&&allowedEdges!=null&&!allowedEdges.Contains(SelectedEdge)){SelectedEdge=null;AnnounceSelection();}
+        }
+    }
+    void UpdateConnectionFilter()=>allowedEdges=connectionDisplay==ConnectionDisplay.All?null:GraphConnections.MatchingIds(document,connectionDisplay);
+    internal IReadOnlyList<string> DrawnEdgeIds {get{BuildGeometry();return paths.Select(p=>p.Edge.Id).ToArray();}}
+    internal string? HitRelation(Point world)=>HitEdge(world)?.Edge.Id;
     public double Zoom {get;private set;}=1;
     public Point Offset {get;private set;}=new(50,50);
     public double RightInset {get;set;}
@@ -124,10 +142,10 @@ public sealed class GraphSurface : FrameworkElement
     public Point ToWorld(Point point)=>new((point.X-Offset.X)/Zoom,(point.Y-Offset.Y)/Zoom);
     public Point ToScreen(Point point)=>new(point.X*Zoom+Offset.X,point.Y*Zoom+Offset.Y);
     public Rect RegionBounds(Region region){if(region.IsAbsolute)return new Rect(region.X,region.Y,region.Width,region.Height);var b=Rect.Empty;foreach(var id in region.Members)if(index.TryGetValue(id,out var n))b.Union(Bounds(n));if(b.IsEmpty)return b;b.Inflate(28,28);return b;}
-    public void SetView(double zoom,Point offset,bool smooth=false){targetZoom=Math.Clamp(zoom,.10,3.2);targetOffset=offset;if(smooth)StartAnimation();else{StopAnimation(false);Zoom=targetZoom;Offset=targetOffset;InvalidateVisual();ViewChanged?.Invoke();}}
+    public void SetView(double zoom,Point offset,bool smooth=false){targetZoom=Math.Clamp(zoom,MinimumZoom,MaximumZoom);targetOffset=offset;if(smooth)StartAnimation();else{StopAnimation(false);Zoom=targetZoom;Offset=targetOffset;InvalidateVisual();ViewChanged?.Invoke();}}
     public void ZoomBy(double factor,Point? anchor=null)
     {
-        var p=anchor??new Point(UsableWidth/2,ActualHeight/2);var world=ToWorld(p);targetZoom=Math.Clamp(targetZoom*factor,.10,3.2);targetOffset=new Point(p.X-world.X*targetZoom,p.Y-world.Y*targetZoom);StartAnimation();
+        var p=anchor??new Point(UsableWidth/2,ActualHeight/2);var world=ToWorld(p);targetZoom=Math.Clamp(targetZoom*factor,MinimumZoom,MaximumZoom);targetOffset=new Point(p.X-world.X*targetZoom,p.Y-world.Y*targetZoom);StartAnimation();
     }
     void StartAnimation(){if(animating)return;animating=true;lastFrame=Stopwatch.GetTimestamp();CompositionTarget.Rendering+=Animate;}
     void StopAnimation(bool resetTarget=true){if(animating){CompositionTarget.Rendering-=Animate;animating=false;}if(resetTarget){targetOffset=Offset;targetZoom=Zoom;}}
@@ -138,13 +156,44 @@ public sealed class GraphSurface : FrameworkElement
     internal void AdvanceView(double elapsed)
     {
         var t=1-Math.Exp(-Math.Clamp(elapsed,0,.05)*24);Zoom+=(targetZoom-Zoom)*t;Offset+= (targetOffset-Offset)*t;
-        if(Math.Abs(Zoom-targetZoom)<.0008&&(Offset-targetOffset).Length<.18){Zoom=targetZoom;Offset=targetOffset;StopAnimation(false);}InvalidateVisual();ViewChanged?.Invoke();
+        if(Math.Abs(Zoom-targetZoom)<Math.Max(1e-12,targetZoom*.0008)&&(Offset-targetOffset).Length<.18){Zoom=targetZoom;Offset=targetOffset;StopAnimation(false);}InvalidateVisual();ViewChanged?.Invoke();
     }
-    public void Fit(bool smooth=true)
+    internal Rect ContentBounds(double zoom)
+    {
+        var bounds=BoardBounds??Rect.Empty;
+        var boxes=visible.ToDictionary(n=>n.Id,n=>n.Kind=="circle"?GraphGroups.Bounds(document,n,zoom):GraphGroups.PointBounds(n,zoom));
+        foreach(var box in boxes.Values)bounds.Union(box);
+        foreach(var region in regions)bounds.Union(RegionBounds(region));
+        // Include parallel relation lanes as well as their endpoints.
+        foreach(var edge in projected)
+        {
+            var from=boxes[edge.From];var to=boxes[edge.To];
+            var a=new Point(from.X+from.Width/2,from.Y+from.Height/2);var b=new Point(to.X+to.Width/2,to.Y+to.Height/2);
+            var vector=b-a;if(vector.Length<.001)vector=new Vector(1,0);
+            var normal=new Vector(-vector.Y,vector.X);normal.Normalize();if(string.CompareOrdinal(edge.From,edge.To)>0)normal=-normal;
+            bounds.Union(GraphCurve.Create(a,b,normal,edge.Bend).Control);
+        }
+        return bounds;
+    }
+    public void Fit(bool smooth=true,bool editing=false)
     {
         detailView=null;
-        var b=BoardBounds??Rect.Empty;if(b.IsEmpty){foreach(var n in visible)b.Union(ObjectBounds(n));foreach(var r in regions)b.Union(RegionBounds(r));}if(b.IsEmpty){SetView(1,new Point(UsableWidth/2,ActualHeight/2),smooth);return;}
-        var zoom=Math.Clamp(Math.Min((UsableWidth-180)/Math.Max(b.Width,160),(ActualHeight-160)/Math.Max(b.Height,160)),.10,1.35);var offset=new Point((UsableWidth-b.Width*zoom)/2-b.X*zoom,(ActualHeight-b.Height*zoom)/2-b.Y*zoom);SetView(zoom,offset,smooth);
+        var b=ContentBounds(1);if(b.IsEmpty){SetView(1,new Point(UsableWidth/2,ActualHeight/2),smooth);return;}
+        var width=Math.Max(60,UsableWidth-180);var height=Math.Max(60,ActualHeight-160);
+        var minimum=editing?EditingMinimumZoom:MinimumZoom;
+        double Scale(Rect bounds)=>Math.Clamp(Math.Min(width/Math.Max(bounds.Width,160),height/Math.Max(bounds.Height,160)),minimum,1.35);
+        var zoom=Scale(b);
+        // Points and rings keep screen-space padding. Fit their bounds at the destination scale,
+        // starting from the same geometry every time so repeated Fit does not drift.
+        for(int i=0;i<32;i++)
+        {
+            b=ContentBounds(zoom);var next=Math.Min(zoom,Scale(b));
+            if(next>=zoom*(1-1e-8))break;
+            zoom=next;
+        }
+        b=ContentBounds(zoom);
+        var center=new Point(b.X+b.Width/2,b.Y+b.Height/2);
+        SetView(zoom,new Point(UsableWidth/2-center.X*zoom,ActualHeight/2-center.Y*zoom),smooth);
     }
     public void ToggleDetail(Point? pointer=null,bool smooth=true)
     {
@@ -156,6 +205,7 @@ public sealed class GraphSurface : FrameworkElement
         SetView(Math.Max(Zoom,zoom),new Point(UsableWidth/2-center.X*Math.Max(Zoom,zoom),ActualHeight/2-center.Y*Math.Max(Zoom,zoom)),smooth);
     }
     public void EnsureVisible(string id){if(IsInteracting||!index.TryGetValue(id,out var n))return;var p=ToScreen(ObjectCenter(n));var safe=new Point(Math.Clamp(p.X,70,Math.Max(70,UsableWidth-70)),Math.Clamp(p.Y,70,Math.Max(70,ActualHeight-70)));if((safe-p).Length>1)SetView(Zoom,Offset+(safe-p),true);}
+    string? navigationFrame,navigationLastNode;
     internal bool NavigateNodes(Vector direction)
     {
         if(IsPreview||IsInteracting||DrawingRegion||LinkMode||visible.Count==0||direction.LengthSquared<.001)return false;
@@ -163,11 +213,20 @@ public sealed class GraphSurface : FrameworkElement
         if(chosen.Length>0){var bounds=Rect.Empty;foreach(var node in chosen)bounds.Union(ObjectCenter(node));origin=new Point(bounds.X+bounds.Width*(1+direction.X)/2,bounds.Y+bounds.Height*(1+direction.Y)/2);}
         if(origin==null&&SelectedEdge!=null){BuildGeometry();var edge=paths.FirstOrDefault(p=>p.Edge.Id==SelectedEdge);if(edge!=null)origin=Curve(edge,.5);}
         if(origin==null&&SelectedRegions.Count>0){var bounds=SelectedBounds();if(!bounds.IsEmpty)origin=new Point(bounds.X+bounds.Width/2,bounds.Y+bounds.Height/2);}
+        // Keep the starting frame throughout a keyboard sequence, including overlap areas.
+        bool InFrame(Proposition node,Region frame)=>GraphBoard.Bounds(frame).Contains(ObjectCenter(node));
+        Region? frame=null;
+        if(chosen.Length==1&&chosen[0].Id==navigationLastNode&&navigationFrame!=null)
+            frame=regions.FirstOrDefault(r=>r.Id==navigationFrame&&InFrame(chosen[0],r));
+        if(frame==null&&origin is Point start)
+            frame=regions.Where(r=>chosen.Length>0?chosen.All(n=>InFrame(n,r)):SelectedRegions.Count>0?SelectedRegions.Contains(r.Id):GraphBoard.Bounds(r).Contains(start))
+                .OrderBy(r=>r.Width*r.Height).ThenBy(r=>r.Id,StringComparer.Ordinal).FirstOrDefault();
+        var candidates=visible.Where(n=>frame!=null?InFrame(n,frame):origin==null||!regions.Any(r=>InFrame(n,r))).ToArray();
         Proposition? next;
         if(origin is Point anchor)
         {
             // Prefer a nearby point in the requested direction over one almost sideways.
-            next=visible.Where(n=>n.Kind!="circle"&&!Selected.Contains(n.Id)).Select(n=>
+            next=candidates.Where(n=>n.Kind!="circle"&&!Selected.Contains(n.Id)).Select(n=>
             {
                 var delta=ObjectCenter(n)-anchor;var forward=Vector.Multiply(delta,direction);var side=Math.Abs(Vector.CrossProduct(delta,direction));
                 return(Node:n,Forward:forward,Score:forward>.001?forward+2*side+side*side/forward:double.PositiveInfinity);
@@ -176,9 +235,10 @@ public sealed class GraphSurface : FrameworkElement
         else
         {
             var center=ToWorld(new Point(UsableWidth/2,ActualHeight/2));var viewport=new Rect(0,0,UsableWidth,Math.Max(0,ActualHeight));
-            next=visible.Where(n=>n.Kind!="circle").OrderBy(n=>viewport.Contains(ToScreen(ObjectCenter(n)))?0:1).ThenBy(n=>(ObjectCenter(n)-center).LengthSquared).ThenBy(n=>n.Id,StringComparer.Ordinal).FirstOrDefault();
+            next=candidates.Where(n=>n.Kind!="circle").OrderBy(n=>viewport.Contains(ToScreen(ObjectCenter(n)))?0:1).ThenBy(n=>(ObjectCenter(n)-center).LengthSquared).ThenBy(n=>n.Id,StringComparer.Ordinal).FirstOrDefault();
         }
         if(next==null)return false;
+        navigationFrame=frame?.Id;navigationLastNode=next.Id;
         ClearAllSelection();Selected=[next.Id];AnnounceSelection();EnsureVisible(next.Id);return true;
     }
     double NodeRadius(Proposition node)=>GraphStyle.DisplayRadius(GraphStyle.Radius(node),Zoom);
@@ -210,9 +270,10 @@ public sealed class GraphSurface : FrameworkElement
     }
     void BuildGeometry()
     {
-        if(!geometryDirty&&geometryZoom==Zoom)return;if(geometryDirty)captionReconsider=true;geometryDirty=false;geometryZoom=Zoom;paths.Clear();captionsDirty=true;
+        if(!geometryDirty&&geometryZoom==Zoom)return;if(geometryDirty){captionReconsider=true;UpdateConnectionFilter();}geometryDirty=false;geometryZoom=Zoom;paths.Clear();captionsDirty=true;
         foreach(var item in projected)
         {
+            if(allowedEdges!=null&&!allowedEdges.Contains(item.Edge.Id))continue;
             var from=index[item.From];var to=index[item.To];var a=ObjectCenter(from);var b=ObjectCenter(to);var vector=b-a;if(vector.Length<.001)vector=new Vector(1,0);
             var normal=new Vector(-vector.Y,vector.X);normal.Normalize();if(string.CompareOrdinal(item.From,item.To)>0)normal=-normal;
             var rA=OuterRadius(from)+2/Zoom;var rB=OuterRadius(to)+2/Zoom;
