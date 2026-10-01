@@ -22,7 +22,6 @@ public partial class MainWindow : Window
     readonly Stack<(string Json,string? Scope,string? Region)> undo=[],redo=[];
     readonly DispatcherTimer saveTimer=new(){Interval=TimeSpan.FromMilliseconds(800)};
     readonly DispatcherTimer toastTimer=new(){Interval=TimeSpan.FromSeconds(4)};
-    readonly string[] colors=["#719AC7","#73A899","#A291C9","#D1A07E","#C58F9D","#C1B66E","#929EAE"];
     sealed record BoardState(string? Scope,string? Region,double Zoom,Point Offset,HashSet<string> Selected,string? Edge,HashSet<string> SelectedRegions,Rect? SelectionBox,(double Zoom,Point Offset)? Detail);
     readonly Stack<BoardState> boards=[];
     [DllImport("dwmapi.dll")]static extern int DwmSetWindowAttribute(IntPtr window,int attribute,ref int value,int size);
@@ -32,15 +31,15 @@ public partial class MainWindow : Window
         LoadViewSettings();
         InitializeLibrary();ApplyTheme();foreach(var editor in new[]{DocumentTitleBox,CaptionBox,PropositionBox,NotesBox})ConfigureTextMenu(editor);SourceInitialized+=(s,e)=>NativeTitleTheme();
         Graph.SelectionChanged+=SelectionChanged;Graph.BeforeChange+=Remember;Graph.Changed+=()=>Changed();Graph.EnterCircle+=Enter;Graph.CreateNode+=AddNode;Graph.CreateRegion+=AddRegion;Graph.Connect+=AddEdge;
-        Graph.EnterRegion+=EnterRegion;Graph.LayoutFinished+=()=>Changed(false);Graph.LayoutFailed+=message=>Notify("Could not arrange the graph: "+message);
+        Graph.EnterRegion+=EnterRegion;Graph.LayoutFinished+=()=>Changed(false);Graph.LayoutFailed+=message=>Notify("Could not arrange the graph: "+message);Graph.LayoutNotice+=message=>Notify(message,true);
         Graph.BoxSelectionCompleted+=box=>{ensurePending=false;Graph.Focus();};
         PreviewMouseWheel+=(s,e)=>{if(RouteGraphWheel(e.Delta,e.GetPosition(Graph)))e.Handled=true;};
         Graph.EditRequested+=()=>{if(Graph.Selected.Count==1){SelectionChanged();PropositionBox.Focus();}};Graph.ContextRequested+=()=>ShowContext(Graph,PlacementMode.MousePoint);
         Graph.MouseUp+=(s,e)=>Dispatcher.BeginInvoke(EnsureSelectedVisible,DispatcherPriority.Loaded);
-        FitButton.Click+=(s,e)=>{Graph.Focus();Graph.Fit();};FitEditButton.Click+=(s,e)=>{Graph.Focus();Graph.Fit(editing:true);};NewNodeButton.Click+=(s,e)=>AddNode(FreePosition());BackButton.Click+=(s,e)=>Leave();BuildMenus();
+        FitButton.Click+=(s,e)=>{Graph.Focus();Graph.Fit();};FitEditButton.Click+=(s,e)=>{Graph.Focus();Graph.Fit(editing:true);};ArrangeButton.Click+=(s,e)=>ArrangeGraph();NewNodeButton.Click+=(s,e)=>AddNode(FreePosition());BackButton.Click+=(s,e)=>Leave();BuildMenus();
         InitializeConnectionControls();
         ThemeButton.Click+=(s,e)=>{dark=!dark;ApplyTheme();SaveViewSettings();};
-        MoreButton.Click+=(s,e)=>ShowContext(MoreButton,PlacementMode.Bottom);ColorButton.Click+=(s,e)=>{if(editorKind=="node"&&editorId!=null)ShowColors(ColorButton,editorId);};
+        MoreButton.Click+=(s,e)=>ShowContext(MoreButton,PlacementMode.Bottom);ColorButton.Click+=(s,e)=>{if(editorKind is "node" or "edge"&&editorId!=null)ShowColors(ColorButton,editorId);};
         LinkButton.Click+=(s,e)=>{if(editorKind=="node"&&editorId!=null){Graph.LinkMode=true;Graph.LinkStart=editorId;Graph.Cursor=Cursors.Cross;Graph.Focus();}};
         RegionButton.Click+=(s,e)=>RegionAroundSelection();CircleButton.Click+=(s,e)=>CreateCircle();DeleteButton.Click+=(s,e)=>DeleteSelection();CustomRelationButton.Click+=(s,e)=>{if(editorKind=="edge"&&editorId!=null)CustomRelation(editorId);};ToastUndo.Click+=(s,e)=>Undo();
         DocumentTitleBox.TextChanged+=(s,e)=>{if(updating)return;RememberEdit("document");doc.Title=DocumentTitleBox.Text;UpdateLibraryTitle();Changed(false);};
@@ -132,14 +131,14 @@ public partial class MainWindow : Window
         RegionButton.IsEnabled=FrameCreationBounds()!=null;CircleButton.IsEnabled=GraphGroups.CanGroup(doc,Graph.Selected);DeleteButton.IsEnabled=Graph.SelectionCount>0;
         if(Graph.SelectionCount==1&&Graph.Selected.Count==1)
         {
-            var node=doc.Node(Graph.Selected.First())!;editorId=node.Id;editorKind="node";NodePanel.Visibility=Visibility.Visible;ColorButton.Visibility=LinkButton.Visibility=Visibility.Visible;NodeColorDot.Kind=node.Kind;NodeColorDot.Stroke=GraphStyle.Brush(GraphStyle.NodeColor(node.Color,dark));
+            var node=doc.Node(Graph.Selected.First())!;editorId=node.Id;editorKind="node";NodePanel.Visibility=Visibility.Visible;ColorButton.Visibility=LinkButton.Visibility=Visibility.Visible;NodeColorDot.Kind=node.Kind;NodeColorDot.Stroke=GraphStyle.Brush(GraphMarkColors.Node(doc,node,dark));
             CaptionPanel.Visibility=Visibility.Visible;
             if(previousId!=editorId||previousKind!=editorKind){SetText(CaptionBox,node.Caption);SetText(PropositionBox,node.Title);SetText(NotesBox,node.Note);}EditorHeading.Text=node.Kind=="circle"?"":"Proposition";
             System.Windows.Automation.AutomationProperties.SetName(PropositionBox,"Proposition");
         }
         else if(Graph.SelectionCount==0&&Graph.SelectedEdge is string edgeId&&doc.Edges.FirstOrDefault(e=>e.Id==edgeId) is Relation edge)
         {
-            editorId=edge.Id;editorKind="edge";EdgePanel.Visibility=CaptionPanel.Visibility=Visibility.Visible;EdgeLabel.Text=GraphStyle.RelationName(edge.Label);EditorHeading.Text="Relation";if(previousId!=editorId||previousKind!=editorKind){SetText(CaptionBox,edge.Caption);SetText(NotesBox,edge.Note);}BuildArrowChoices(edge);
+            editorId=edge.Id;editorKind="edge";EdgePanel.Visibility=CaptionPanel.Visibility=ColorButton.Visibility=Visibility.Visible;NodeColorDot.Kind="point";NodeColorDot.Stroke=GraphStyle.Brush(GraphMarkColors.Edge(edge,dark));EdgeLabel.Text=GraphStyle.RelationName(edge.Label);EditorHeading.Text="Relation";if(previousId!=editorId||previousKind!=editorKind){SetText(CaptionBox,edge.Caption);SetText(NotesBox,edge.Note);}BuildArrowChoices(edge);
         }
         else if(Graph.SelectionCount==1&&Graph.SelectedRegion is string regionId&&doc.Regions.FirstOrDefault(r=>r.Id==regionId) is Region region)
         {
@@ -192,17 +191,23 @@ public partial class MainWindow : Window
         Item(FileMenu,"New paper",NewDocument);Item(FileMenu,"Open…",OpenDocument,"Ctrl+O");Item(FileMenu,"Save",()=>Save(),"Ctrl+S");Item(FileMenu,"Save as…",SaveCopy);Item(FileMenu,"Show in folder",ShowGraphFolder);Item(FileMenu,"Export Markdown…",Export);
         var undoItem=Item(EditMenu,"Undo",Undo,"Ctrl+Z");var redoItem=Item(EditMenu,"Redo",Redo,"Ctrl+Y");Item(EditMenu,"Delete selection",DeleteSelection,"Delete");EditMenu.SubmenuOpened+=(s,e)=>{undoItem.IsEnabled=undo.Count>0;redoItem.IsEnabled=redo.Count>0;};
         Item(InsertMenu,"Proposition",()=>AddNode(FreePosition()),"Ctrl+N");SymbolItem(InsertMenu,"frame",BeginRegion,"R");SymbolItem(InsertMenu,"circle",CreateCircle,"Ctrl+G");
-        Item(ViewMenu,"Fit all",()=>{Graph.Focus();Graph.Fit();},"F");Item(ViewMenu,"Fit for editing",()=>{Graph.Focus();Graph.Fit(editing:true);},"Shift+F");Item(ViewMenu,"Focus selection / return",()=>{Graph.Focus();Graph.ToggleDetail();},"Z");Item(ViewMenu,"Arrange graph",ArrangeGraph);Item(ViewMenu,"Switch theme",()=>ThemeButton.RaiseEvent(new RoutedEventArgs(Button.ClickEvent)));
+        Item(ViewMenu,"Fit all",()=>{Graph.Focus();Graph.Fit();},"F");Item(ViewMenu,"Fit for editing",()=>{Graph.Focus();Graph.Fit(editing:true);},"Shift+F");Item(ViewMenu,"Focus selection / return",()=>{Graph.Focus();Graph.ToggleDetail();},"Z");Item(ViewMenu,"Arrange inside",ArrangeGraph);Item(ViewMenu,"Switch theme",()=>ThemeButton.RaiseEvent(new RoutedEventArgs(Button.ClickEvent)));
         BuildConnectionMenu();
         Item(HelpMenu,"Controls and symbols",Help);
     }
     void ShowContext(FrameworkElement target,PlacementMode placement)
     {
-        if(Graph.GroupSelection){SelectionChanged();Graph.Focus();return;}
+        var position=placement==PlacementMode.MousePoint?Graph.ToWorld(Mouse.GetPosition(Graph)):PastePosition();
+        var menu=CreateGraphContext(target,placement,position);menu.IsOpen=true;
+    }
+    internal ContextMenu CreateGraphContext(FrameworkElement target,PlacementMode placement,Point position)
+    {
         var menu=Menu(target,placement);
+        AddClipboardItems(menu,position);
+        if(Graph.GroupSelection){Item(menu,"Delete",DeleteSelection,"Delete");return menu;}
         if(Graph.Selected.Count==1)
         {
-            var n=doc.Node(Graph.Selected.First())!;Item(menu,"Edit",FocusCard,"Enter");if(n.Kind=="circle"){Item(menu,"Enter",()=>Enter(n.Id));Item(menu,"Ungroup",()=>DissolveCircle(n.Id));}menu.Items.Add(new Separator());Item(menu,"Delete",DeleteSelection,"Delete");
+            var n=doc.Node(Graph.Selected.First())!;Item(menu,"Edit",FocusCard,"Enter");Item(menu,"Mark color…",()=>ShowColors(ColorButton,n.Id));if(n.Kind=="circle"){Item(menu,"Enter",()=>Enter(n.Id));Item(menu,"Ungroup",()=>DissolveCircle(n.Id));}menu.Items.Add(new Separator());Item(menu,"Delete",DeleteSelection,"Delete");
         }
         
         else if(Graph.SelectedRegion is string regionId)
@@ -218,22 +223,16 @@ public partial class MainWindow : Window
         }
         else if(Graph.SelectedEdge is string edge)
         {
+            Item(menu,"Mark color…",()=>ShowColors(ColorButton,edge));menu.Items.Add(new Separator());
             Item(menu,"→ Forward",()=>SetDirection(edge,"forward"));Item(menu,"← Reverse",()=>SetDirection(edge,"reverse"));Item(menu,"↔ Both directions",()=>SetDirection(edge,"both"));menu.Items.Add(new Separator());foreach(var label in GraphStyle.Relations){var value=label;var item=Item(menu,label,()=>SetRelation(edge,value));item.Icon=new EdgeGlyph{Label=label,Stroke=Ui("TextBrush"),Surface=Ui("SurfaceBrush")};}Item(menu,"Custom…",()=>CustomRelation(edge));Item(menu,"Delete",DeleteSelection);
         }
-        else{var center=Graph.ToWorld(Mouse.GetPosition(Graph));Item(menu,"New proposition",()=>AddNode(center));SymbolItem(menu,"frame",BeginRegion,"R");Item(menu,"Fit all",()=>Graph.Fit(),"F");Item(menu,"Fit for editing",()=>Graph.Fit(editing:true),"Shift+F");Item(menu,"Arrange graph",ArrangeGraph);Item(menu,"Undo",Undo,"Ctrl+Z",undo.Count>0);}
-        menu.IsOpen=true;
+        else{var center=Graph.ToWorld(Mouse.GetPosition(Graph));Item(menu,"New proposition",()=>AddNode(center));SymbolItem(menu,"frame",BeginRegion,"R");Item(menu,"Fit all",()=>Graph.Fit(),"F");Item(menu,"Fit for editing",()=>Graph.Fit(editing:true),"Shift+F");Item(menu,"Arrange inside",ArrangeGraph);Item(menu,"Undo",Undo,"Ctrl+Z",undo.Count>0);}
+        return menu;
     }
     void SetRelation(string id,string value){var edge=doc.Edges.FirstOrDefault(e=>e.Id==id);if(edge==null||GraphStyle.RelationName(edge.Label)==value)return;if(doc.Edges.Any(e=>e.Id!=id&&e.From==edge.From&&e.To==edge.To&&GraphStyle.RelationName(e.Label)==value&&e.Direction==edge.Direction)){Notify("This relation already exists");return;}Remember();edge.Label=value;Changed();}
     void SetDirection(string id,string value){var edge=doc.Edges.FirstOrDefault(e=>e.Id==id);if(edge==null||edge.Direction==value)return;if(doc.Edges.Any(e=>e.Id!=id&&e.From==edge.From&&e.To==edge.To&&GraphStyle.RelationName(e.Label)==GraphStyle.RelationName(edge.Label)&&e.Direction==value)){Notify("This relation already exists");return;}Remember();edge.Direction=value;Changed();}
     void ReverseEdge(string id){var edge=doc.Edges.FirstOrDefault(e=>e.Id==id);if(edge==null)return;if(doc.Edges.Any(e=>e.Id!=id&&e.From==edge.To&&e.To==edge.From&&GraphStyle.RelationName(e.Label)==GraphStyle.RelationName(edge.Label))){Notify("The reverse relation already exists");return;}Remember();(edge.From,edge.To)=(edge.To,edge.From);Changed();}
     void CustomRelation(string id){var edge=doc.Edges.FirstOrDefault(e=>e.Id==id);if(edge==null)return;var value=Ask("Relation",GraphStyle.RelationName(edge.Label));if(value==null)return;if(value.Length>40){Notify("Relation names can be up to 40 characters");return;}SetRelation(id,value);}
-    void ShowColors(FrameworkElement target,string id)
-    {
-        var menu=Menu(target);var panel=new StackPanel();var row=new StackPanel{Orientation=Orientation.Horizontal,Margin=new Thickness(5)};
-        foreach(var color in colors){var button=new Button{Content=new System.Windows.Shapes.Ellipse{Width=21,Height=21,Fill=GraphStyle.Brush(GraphStyle.NodeColor(color,dark))},Padding=new Thickness(5),ToolTip=color};System.Windows.Automation.AutomationProperties.SetName(button,"Color "+color);button.Click+=(s,e)=>{menu.IsOpen=false;SetColor(id,color);};row.Children.Add(button);}panel.Children.Add(row);
-        var custom=new Button{Content="Custom…",FontSize=12,HorizontalAlignment=HorizontalAlignment.Left};custom.Click+=(s,e)=>{menu.IsOpen=false;var value=Ask("Color",doc.Node(id)?.Color??colors[0]);if(value==null)return;if(!Regex.IsMatch(value,"^#[0-9a-fA-F]{6}$")){Notify("Use # followed by six hexadecimal digits");return;}SetColor(id,value);};panel.Children.Add(custom);menu.Items.Add(panel);menu.IsOpen=true;
-    }
-    void SetColor(string id,string color){if(doc.Node(id) is not Proposition n||n.Color==color)return;Remember();n.Color=color;Changed();}
     void BeginRegion(){CancelLink();Graph.DrawingRegion=true;Graph.Focus();Graph.Cursor=Cursors.Cross;Notify("Draw a rectangle · Esc to cancel");}
     void AddRegion(Rect box){if(Graph.BoardBounds is Rect parent)box.Intersect(parent);if(box.IsEmpty||box.Width<40||box.Height<40)return;Remember();var r=new Region{Title="",Color=GraphRegionColors.NewColor(doc.Regions),IsAbsolute=true,Parent=Graph.Scope,X=box.X,Y=box.Y,Width=box.Width,Height=box.Height};doc.Regions.Add(r);Graph.Selected.Clear();Graph.SelectedEdge=null;Graph.SelectedRegion=r.Id;Changed();Toast.Visibility=Visibility.Collapsed;Graph.Focus();}
     void CreateCircle(){if(!GraphGroups.CanGroup(doc,Graph.Selected)){Notify("Select connected points from the same group, or create a □");return;}Remember();var roots=GraphGroups.SelectionRoots(doc,Graph.Selected);var frames=Graph.SelectedRegions.ToHashSet();var circle=doc.Collapse(roots.Select(n=>n.Id),roots[0].Parent);circle.Title="";foreach(var r in doc.Regions.Where(r=>frames.Contains(r.Id)&&r.Parent==circle.Parent))r.Parent=circle.Id;Graph.Selected=[circle.Id];Graph.SelectedEdge=Graph.SelectedRegion=null;Changed();FocusCard();}
@@ -293,6 +292,7 @@ public partial class MainWindow : Window
         if(ctrl&&e.Key==Key.S){Save();e.Handled=true;return;}
         if(e.Key==Key.Escape){if(Graph.CancelBoxSelection()){}else if(Graph.DrawingRegion){Graph.DrawingRegion=false;Graph.Cursor=Cursors.Arrow;Toast.Visibility=Visibility.Collapsed;}else if(Graph.LinkMode)CancelLink();else if(typing)Graph.Focus();else if(Graph.GroupSelection)ClearSelection();else if(Graph.Scope!=null||Graph.BoardRegion!=null)Leave();else if(editorId!=null||Graph.SelectionCount>0)ClearSelection();e.Handled=true;return;}
         if(typing||GraphList.IsKeyboardFocusWithin)return;
+        if(RouteGraphClipboard(e.Key,Keyboard.Modifiers,Keyboard.FocusedElement)){e.Handled=true;return;}
         if(RouteFit(e.Key,Keyboard.Modifiers,Keyboard.FocusedElement)){e.Handled=true;return;}
         if(RouteNodeNavigation(e.Key,Keyboard.Modifiers,Keyboard.FocusedElement)){e.Handled=true;return;}
         if(RouteTitleToggle(e.Key,Keyboard.Modifiers,Keyboard.FocusedElement,e.IsRepeat)){e.Handled=true;return;}

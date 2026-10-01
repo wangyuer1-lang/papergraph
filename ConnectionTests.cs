@@ -24,7 +24,33 @@ public static class ConnectionTests
         Check(GraphConnections.MatchingIds(doc,ConnectionDisplay.AcrossFrames).SetEquals(["ac","ad","rc"]),"Across includes different frames and frame-to-outside, but not wholly unframed links");
         Check(GraphConnections.MatchingIds(doc,ConnectionDisplay.All).Count==9,"All includes unframed links");
         var parent=new Region{Id="outer",IsAbsolute=true,X=0,Y=0,Width=750,Height=350};doc.Regions.Add(parent);
-        Check(GraphConnections.MatchingIds(doc,ConnectionDisplay.WithinFrames).Contains("ac"),"A common outer frame is still a shared frame");doc.Regions.Remove(parent);
+        Check(!GraphConnections.MatchingIds(doc,ConnectionDisplay.WithinFrames).Contains("ac")&&GraphConnections.MatchingIds(doc,ConnectionDisplay.AcrossFrames).Contains("ac"),"A common outer frame must not hide the boundary between inner frames");doc.Regions.Remove(parent);
+
+        var nestedFrames=new GraphDocument
+        {
+            Nodes=[Point("l1",80,80),Point("l2",140,80),Point("r1",380,80),Point("r2",440,80),Point("p1",700,200),Point("p2",700,280),Point("out",900,400)],
+            Edges=[Link("left","l1","l2"),Link("right","r1","r2"),Link("bridge","l1","r1"),Link("parent","p1","p2"),Link("parent-child","p1","l1"),Link("exit","p1","out")],
+            Regions=[new(){Id="wrapper",IsAbsolute=true,X=0,Y=0,Width=800,Height=500},new(){Id="left-frame",IsAbsolute=true,X=40,Y=40,Width=200,Height=140},
+                new(){Id="right-frame",IsAbsolute=true,X=340,Y=40,Width=200,Height=140},new(){Id="wrapper2",IsAbsolute=true,X=-20,Y=-20,Width=850,Height=550}]
+        };
+        nestedFrames.Validate();var nestedOriginal=nestedFrames.Serialize();
+        var nestedGraph=new GraphSurface{Document=nestedFrames,ConnectionDisplay=ConnectionDisplay.WithinFrames};nestedGraph.Measure(new Size(1000,650));nestedGraph.Arrange(new Rect(0,0,1000,650));
+        Check(nestedGraph.DrawnEdgeIds.ToHashSet().SetEquals(["left","right","parent"]),"Within draws only innermost shared-frame links through multiple wrappers");
+        nestedGraph.ConnectionDisplay=ConnectionDisplay.AcrossFrames;
+        Check(nestedGraph.DrawnEdgeIds.ToHashSet().SetEquals(["bridge","parent-child","exit"]),"Across includes sibling frames, parent-to-child and frame-to-outside links");
+        nestedGraph.SetView(.02,new Point());Check(nestedGraph.DrawnEdgeIds.ToHashSet().SetEquals(["bridge","parent-child","exit"]),"Nested frame filtering stays correct at overview zoom");
+        nestedGraph.ConnectionDisplay=ConnectionDisplay.All;Check(nestedGraph.DrawnEdgeIds.Count==6&&nestedFrames.Serialize()==nestedOriginal,"Nested filtering preserves all graph data");
+        nestedFrames.Regions.Add(new(){Id="left-copy",IsAbsolute=true,X=40,Y=40,Width=200,Height=140});
+        Check(GraphConnections.MatchingIds(nestedFrames,ConnectionDisplay.WithinFrames).SetEquals(["left","right","parent"]),"Identical frame bounds must not cancel both memberships");
+
+        var ringFrames=new GraphDocument
+        {
+            Nodes=[new(){Id="g",Kind="circle",Expanded=true},Point("x",100,100,"g"),Point("y",200,100,"g"),Point("z",300,100,"g")],
+            Edges=[Link("xy","x","y"),Link("xz","x","z")],
+            Regions=[new(){Id="outside-ring",IsAbsolute=true,X=0,Y=0,Width=600,Height=400},new(){Id="inside-ring",IsAbsolute=true,Parent="g",X=50,Y=50,Width=200,Height=100}]
+        };
+        ringFrames.Validate();
+        Check(GraphConnections.MatchingIds(ringFrames,ConnectionDisplay.WithinFrames).SetEquals(["xy"])&&GraphConnections.MatchingIds(ringFrames,ConnectionDisplay.AcrossFrames).SetEquals(["xz"]),"A frame inside a ring supersedes the inherited outer frame only for its own members");
 
         var graph=new GraphSurface{Document=doc,ShowCaptions=true};graph.Measure(new Size(900,650));graph.Arrange(new Rect(0,0,900,650));graph.SetView(1,new Point());
         var allLinks=graph.VisibleLinks.ToArray();var view=(graph.Zoom,graph.Offset);var notifications=0;graph.SelectionChanged+=()=>notifications++;
@@ -64,6 +90,6 @@ public static class ConnectionTests
         Check(restored.Graph.ConnectionDisplay==ConnectionDisplay.AcrossFrames&&!restored.Graph.Dark,"Connection preference and theme both survive restart");
         Check(File.ReadAllText(Path.Combine(directory,"settings.json")).Contains("keep"),"Saving view settings preserves unrelated preferences");
         restored.Close();Check(GraphDocument.Parse(File.ReadAllText(file)).Serialize()==original,"View preferences never rewrite graph content");
-        File.AppendAllText(Path.Combine(AppContext.BaseDirectory,"test-results.txt"),"PASS: connection display modes, overlap and ring membership, dynamic frame movement, hidden shaft/title hit testing, board scope, unchanged content/layout constraints, toolbar/menu and preference persistence.\n");
+        File.AppendAllText(Path.Combine(AppContext.BaseDirectory,"test-results.txt"),"PASS: connection display modes, innermost nested frames, overlaps, equal bounds and ring membership, dynamic frame movement, hidden shaft/title hit testing, board scope, unchanged content/layout constraints, toolbar/menu and preference persistence.\n");
     }
 }

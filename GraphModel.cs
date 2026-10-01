@@ -11,6 +11,8 @@ public class Proposition
     public string Caption {get;set;}="";
     public string Note {get;set;}="";
     public string Color {get;set;}="#6D9ED5";
+    [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+    public string? MarkColor {get;set;}
     public string Kind {get;set;}="point";
     public bool Expanded {get;set;}
     public string? Parent {get;set;}
@@ -27,6 +29,8 @@ public class Relation
     public string Caption {get;set;}="";
     public string Note {get;set;}="";
     public string Direction {get;set;}="forward";
+    [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+    public string? MarkColor {get;set;}
 }
 public class Region
 {
@@ -60,6 +64,7 @@ public class GraphDocument
     {
         if(Version!=1||Nodes==null||Edges==null||Regions==null||Title==null) throw new InvalidDataException("Unsupported papergraph file format.");
         if(Nodes.Count>5000||Edges.Count>20000) throw new InvalidDataException("A document supports up to 5,000 propositions and 20,000 relations.");
+        if(Nodes.Any(n=>n!=null&&!GraphMarkColors.Valid(n.MarkColor))||Edges.Any(e=>e!=null&&!GraphMarkColors.Valid(e.MarkColor)))throw new InvalidDataException("Invalid mark color. Use #RRGGBB or automatic.");
         if(Regions.Any(r=>r!=null&&(r.Color==null||r.Color.Length>0&&!Regex.IsMatch(r.Color,"^#[0-9a-fA-F]{6}$"))))throw new InvalidDataException("Invalid □ color.");
         var ids=new HashSet<string>();
         foreach(var n in Nodes) if(n==null||string.IsNullOrEmpty(n.Id)||!ids.Add(n.Id)||n.Title==null||n.Caption==null||n.Note==null||n.Color==null||!Regex.IsMatch(n.Color,"^#[0-9a-fA-F]{6}$")||!(n.Kind=="point"||n.Kind=="circle")||!double.IsFinite(n.X)||!double.IsFinite(n.Y)||Math.Abs(n.X)>1e7||Math.Abs(n.Y)>1e7) throw new InvalidDataException("Invalid proposition data.");
@@ -159,7 +164,7 @@ public class GraphDocument
         new(){Id="b",Title="Putting an idea into words can reveal hidden assumptions.",Note="Add an explanation, source or specific example here.",X=65,Y=85,Color="#73A899"},
         new(){Id="c",Title="Relations between propositions make an argument easier to follow.",X=65,Y=345,Color="#73A899"},
         new(){Id="d",Title="An overly complex structure can interrupt thinking.",Note="Keep objections alongside a claim to clarify its limits.",X=785,Y=355,Color="#D1A07E"},
-        new(){Id="round",Kind="circle",Title="From loose ideas\nto a complete argument",Note="A ◎ encloses a connected graph in an open ring. Its contents remain visible, and the ring itself can be connected to other objects.\n\nDouble-click to enter its board. Press Space to show or hide graph titles.",X=825,Y=55,Color="#A291C9"},
+        new(){Id="round",Kind="circle",Title="From loose ideas\nto a complete argument",Note="A ◎ collects a connected graph into one point. External relations remain visible.\n\nDouble-click to enter its board. Press Space to show or hide graph titles.",X=825,Y=55,Color="#A291C9"},
         new(){Id="i1",Parent="round",Title="Write down your initial intuition.",X=120,Y=180,Color="#A291C9"},
         new(){Id="i2",Parent="round",Title="Fill in the steps between premises and conclusion.",X=455,Y=180,Color="#719AC7"},
         new(){Id="i3",Parent="round",Title="Check whether each step supports the next.",X=790,Y=180,Color="#73A899"}],
@@ -170,6 +175,19 @@ public class GraphDocument
 
 public static class Storage
 {
+    // Page creation must never replace an existing document, including a file created by another process.
+    public static void SaveNew(string path,GraphDocument document)
+    {
+        document.Validate();Directory.CreateDirectory(Path.GetDirectoryName(path)!);
+        var temp=path+"."+Guid.NewGuid().ToString("N")+".tmp";
+        try
+        {
+            using(var f=new FileStream(temp,FileMode.CreateNew,FileAccess.Write,FileShare.None,4096,FileOptions.WriteThrough))
+            {var bytes=Encoding.UTF8.GetBytes(document.Serialize());f.Write(bytes);f.Flush(true);}
+            File.Move(temp,path,false);
+        }
+        finally{if(File.Exists(temp))File.Delete(temp);}
+    }
     public static string CompatiblePath(string directory,string name,string legacyName)
     {
         var path=Path.Combine(directory,name);return File.Exists(path)?path:Path.Combine(directory,legacyName);
@@ -199,5 +217,4 @@ public static class ModelTests
         File.WriteAllText(Path.Combine(AppContext.BaseDirectory,"test-results.txt"),"PASS: projection, connected collapse, lossless dissolve, nested scopes, deletion, cycle validation, Unicode persistence, atomic backup, Markdown export.\n");
     }
 }
-
 

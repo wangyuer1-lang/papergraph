@@ -26,7 +26,7 @@ public partial class MainWindow
             _=>"All"
         };
         ConnectionButton.Content="Links: "+label;
-        ConnectionButton.ToolTip="Click to cycle: All → Within □ → Across □\nWithin: endpoints share a □. Across: no shared □, with at least one endpoint in a □.\nUnframed links appear in All. Only visibility changes.";
+        ConnectionButton.ToolTip="Click to cycle: All → Within □ → Across □\nWithin: endpoints share an innermost □. Across: different innermost □, or a □ to outside.\nOuter wrappers do not join separate inner □. Unframed links appear in All. Only visibility changes.";
         AutomationProperties.SetName(ConnectionButton,"Show connections: "+label);
     }
     void SetConnectionDisplay(ConnectionDisplay display)

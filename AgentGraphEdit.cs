@@ -26,6 +26,7 @@ internal static class AgentGraphEdit
             var id=Id(e);var n=next.Node(id);
             if(n==null){if(!e.TryGetProperty("x",out _)||!e.TryGetProperty("y",out _))throw new InvalidDataException("New nodes require x and y.");n=new(){Id=id};next.Nodes.Add(n);}
             n.Title=Text(e,"body",n.Title);n.Caption=Text(e,"caption",n.Caption);n.Note=Text(e,"note",n.Note);n.Color=Text(e,"color",n.Color);
+            if(e.TryGetProperty("markColor",out var mark))n.MarkColor=mark.ValueKind==JsonValueKind.Null?null:mark.GetString();
             n.X=Number(e,"x",n.X);n.Y=Number(e,"y",n.Y);
             if(e.TryGetProperty("parentId",out var parent))n.Parent=parent.ValueKind==JsonValueKind.Null?null:parent.GetString();
         }
@@ -43,6 +44,7 @@ internal static class AgentGraphEdit
             if(edge==null){edge=new(){Id=id,From=AgentProtocol.Required(e,"from"),To=AgentProtocol.Required(e,"to")};next.Edges.Add(edge);}
             edge.From=Text(e,"from",edge.From);edge.To=Text(e,"to",edge.To);edge.Label=Text(e,"kind",edge.Label);
             edge.Caption=Text(e,"caption",edge.Caption);edge.Note=Text(e,"note",edge.Note);edge.Direction=Text(e,"direction",edge.Direction);
+            if(e.TryGetProperty("markColor",out var mark))edge.MarkColor=mark.ValueKind==JsonValueKind.Null?null:mark.GetString();
         }
         foreach(var e in Items("groups"))
         {
@@ -54,6 +56,7 @@ internal static class AgentGraphEdit
             foreach(var n in next.Nodes.Where(n=>n.Parent==temporary))n.Parent=id;
             foreach(var r in next.Regions){if(r.Parent==temporary)r.Parent=id;for(int i=0;i<r.Members.Count;i++)if(r.Members[i]==temporary)r.Members[i]=id;}
             group.Caption=Text(e,"caption","");group.Title=Text(e,"body","");group.Note=Text(e,"note","");group.Color=Text(e,"color",group.Color);
+            if(e.TryGetProperty("markColor",out var mark))group.MarkColor=mark.ValueKind==JsonValueKind.Null?null:mark.GetString();
         }
         if(count==0)throw new InvalidDataException("No edits supplied.");next.Validate();return next;
     }

@@ -66,7 +66,7 @@ internal static class AgentProtocol
 {
     internal static string Revision(GraphDocument doc)=>Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(doc.Serialize())));
     internal static string Required(JsonElement request,string name)=>request.TryGetProperty(name,out var value)&&value.ValueKind==JsonValueKind.String&&!string.IsNullOrWhiteSpace(value.GetString())?value.GetString()!:throw new InvalidDataException("Missing "+name+".");
-    internal static object Node(Proposition n)=>new{id=n.Id,caption=n.Caption,body=n.Title,note=n.Note,kind=n.Kind,parentId=n.Parent,x=n.X,y=n.Y,color=n.Color};
+    internal static object Node(Proposition n)=>new{id=n.Id,caption=n.Caption,body=n.Title,note=n.Note,kind=n.Kind,parentId=n.Parent,x=n.X,y=n.Y,color=n.Color,markColor=n.MarkColor};
     internal static (GraphDocument Document,string[] Ids,bool AlreadyApplied) Prepare(GraphDocument doc,string file,JsonElement request)
     {
         if(!string.Equals(Path.GetFullPath(Required(request,"expectedDocument")),Path.GetFullPath(file),StringComparison.OrdinalIgnoreCase))throw new InvalidDataException("The active document changed. Read a fresh snapshot.");

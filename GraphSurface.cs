@@ -57,6 +57,7 @@ public sealed class GraphSurface : FrameworkElement
     public event Action<string>? EnterCircle,EnterRegion;
     public event Action? LayoutFinished;
     public event Action<string>? LayoutFailed;
+    public event Action<string>? LayoutNotice;
     public event Action<Point>? CreateNode;
     public event Action<Rect>? CreateRegion;
     public event Action<Rect>? BoxSelectionCompleted;
@@ -128,10 +129,30 @@ public sealed class GraphSurface : FrameworkElement
     }
     public async void ArrangeNaturally()
     {
-        CancelLayout();if(IsPreview||visible.Count<2)return;BeforeChange?.Invoke();var bodies=visible.Where(n=>n.Kind!="circle").Select(n=>new GraphRelaxation.Body(n.Id,GraphStyle.Center(n),GraphStyle.Radius(n)+(n.Kind=="circle"?7:0),true,MovementBounds(n),true)).ToArray();var layout=new GraphRelaxation(bodies,VisibleLinks.ToArray(),false);var stamp=layoutRevision;using var cancel=new CancellationTokenSource();layoutCancellation=cancel;
-        try{await Task.Run(()=>layout.Complete(cancel.Token),cancel.Token);if(stamp==layoutRevision&&!cancel.IsCancellationRequested){layoutCancellation=null;ApplyLayout(layout);}}catch(OperationCanceledException){}catch(Exception ex){LayoutFailed?.Invoke(ex.Message);}finally{if(ReferenceEquals(layoutCancellation,cancel))layoutCancellation=null;}
+        await ArrangeInsideAsync();
     }
-    Rect? MovementBounds(Proposition n){Rect? result=BoardBounds;foreach(var r in document.Regions.Where(r=>r.Parent==scope&&r.IsAbsolute&&GraphBoard.Bounds(r).Contains(GraphStyle.Center(n)))){var b=GraphBoard.Bounds(r);if(result is Rect limit){limit.Intersect(b);result=limit;}else result=b;}return result;}
+    internal async Task ArrangeInsideAsync()
+    {
+        CancelLayout();if(IsPreview||IsInteracting||visible.Count<2)return;
+        var snapshot=GraphDocument.Parse(document.Serialize());var currentScope=scope;var currentRegion=boardRegion;
+        var selectedNodes=Selected.ToArray();var selectedRegions=SelectedRegions.ToArray();var stamp=layoutRevision;
+        using var cancel=new CancellationTokenSource();layoutCancellation=cancel;
+        try
+        {
+            var layout=await Task.Run(()=>GraphArrange.Compute(snapshot,currentScope,currentRegion,selectedNodes,selectedRegions,cancel.Token),cancel.Token);
+            if(stamp!=layoutRevision||cancel.IsCancellationRequested)return;
+            layoutCancellation=null;
+            if(layout.Positions.Count>0)
+            {
+                BeforeChange?.Invoke();
+                foreach(var (id,p) in layout.Positions)if(index.TryGetValue(id,out var node)){node.X=p.X;node.Y=p.Y;}
+                geometryDirty=regionGeometryDirty=true;InvalidateVisual();LayoutFinished?.Invoke();
+            }
+            LayoutNotice?.Invoke(layout.Crowded>0?$"Arranged inside · {layout.Crowded} area(s) kept in place: more room needed":layout.Positions.Count>0?"Arranged inside · Ctrl+Z to undo":"Already arranged · select a □ or ◎ to arrange its contents");
+        }
+        catch(OperationCanceledException){}catch(Exception ex){LayoutFailed?.Invoke(ex.Message);}
+        finally{if(ReferenceEquals(layoutCancellation,cancel))layoutCancellation=null;}
+    }
     void ApplyLayout(GraphRelaxation layout)
     {
         bool changed=false;for(int i=0;i<layout.Bodies.Count;i++)if(index.TryGetValue(layout.Bodies[i].Id,out var n)){var delta=layout.Positions[i]-GraphStyle.Center(n);if(delta.Length>.00001){n.X+=delta.X;n.Y+=delta.Y;changed=true;}}
@@ -314,15 +335,18 @@ public sealed class GraphSurface : FrameworkElement
         foreach(var group in visible.Where(n=>n.Kind=="circle").OrderByDescending(n=>OuterRadius(n)))
         {
             var box=ObjectBounds(group);if(!viewport.IntersectsWith(box))continue;var center=ObjectCenter(group);var radius=OuterRadius(group);var active=Selected.Contains(group.Id)||hoverId==group.Id||linkTarget==group.Id;
-            var stroke=active?accent:GraphStyle.Brush(GraphStyle.NodeColor(group.Color,Dark));
-            dc.DrawEllipse(null,new Pen(stroke,(active?2.4:1.6)/Zoom),center,radius,radius);
+            var stroke=group.MarkColor!=null?GraphStyle.Brush(GraphMarkColors.Display(group.MarkColor,Dark)):active?accent:GraphStyle.Brush(GraphStyle.NodeColor(group.Color,Dark));
+            dc.DrawEllipse(null,new Pen(stroke,(active?3:group.MarkColor!=null?2.5:1.6)/Zoom),center,radius,radius);
             var grip=center-new Vector(0,radius);dc.DrawRoundedRectangle(stroke,new Pen(background,1/Zoom),new Rect(grip.X-7/Zoom,grip.Y-2.5/Zoom,14/Zoom,5/Zoom),2.5/Zoom,2.5/Zoom);
             if(active&&!lasso&&!GroupSelection&&Selected.Count<=1){var port=Port(group);dc.DrawLine(new Pen(accent,1.8/Zoom),center+new Vector(radius,0),port);dc.DrawEllipse(background,new Pen(accent,2/Zoom),port,5/Zoom,5/Zoom);}
         }
         foreach(var edge in paths)
         {
             if(!viewport.IntersectsWith(edge.Bounds))continue;
-            bool active=SelectedEdge==edge.Edge.Id||hoverEdge==edge.Edge.Id;var brush=active?accent:edgeBrush;dc.DrawGeometry(null,active?activePen:normalPen,edge.Geometry);
+            bool active=SelectedEdge==edge.Edge.Id||hoverEdge==edge.Edge.Id;
+            var brush=edge.Edge.MarkColor is string mark?GraphStyle.Brush(GraphMarkColors.Display(mark,Dark)):active?accent:edgeBrush;
+            var pen=edge.Edge.MarkColor!=null?new Pen(brush,GraphStyle.EdgeWidth(Zoom,active)+.7/Zoom){StartLineCap=PenLineCap.Round,EndLineCap=PenLineCap.Round}:active?activePen:normalPen;
+            dc.DrawGeometry(null,pen,edge.Geometry);
             var from=index[edge.From];var to=index[edge.To];var start=ArrowAnchor(edge,false,OuterRadius(from)+2/Zoom);var end=ArrowAnchor(edge,true,OuterRadius(to)+2/Zoom);
             var startSize=EdgeTipSize(edge,from);var endSize=EdgeTipSize(edge,to);
             if(start.T>=end.T)continue;
@@ -331,8 +355,8 @@ public sealed class GraphSurface : FrameworkElement
         }
         foreach(var node in visible.Where(n=>n.Kind!="circle").OrderBy(n=>Selected.Contains(n.Id)?1:0))
         {
-            var center=GraphStyle.Center(node);var radius=NodeRadius(node);var outer=OuterRadius(node);if(!viewport.IntersectsWith(new Rect(center.X-outer,center.Y-outer,outer*2,outer*2)))continue;var selected=Selected.Contains(node.Id);var hovered=node.Id==hoverId||node.Id==linkTarget;var key=GraphRegionColors.ForNode(node,document.Regions,document);
-            if(!nodeBrushes.TryGetValue(key,out var fill)){fill=GraphStyle.Brush(GraphStyle.NodeColor(key,Dark));nodeBrushes[key]=fill;}
+            var center=GraphStyle.Center(node);var radius=NodeRadius(node);var outer=OuterRadius(node);if(!viewport.IntersectsWith(new Rect(center.X-outer,center.Y-outer,outer*2,outer*2)))continue;var selected=Selected.Contains(node.Id);var hovered=node.Id==hoverId||node.Id==linkTarget;var key=node.MarkColor is string mark?"mark:"+mark:GraphRegionColors.ForNode(node,document.Regions,document);
+            if(!nodeBrushes.TryGetValue(key,out var fill)){fill=GraphStyle.Brush(GraphMarkColors.Node(document,node,Dark));nodeBrushes[key]=fill;}
             dc.DrawEllipse(background,null,center,outer+2/Zoom,outer+2/Zoom);
             dc.DrawEllipse(fill,null,center,radius,radius);
             if(node.Kind=="circle")dc.DrawEllipse(null,new Pen(fill,1.7/Zoom),center,outer,outer);
