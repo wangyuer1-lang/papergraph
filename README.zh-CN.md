@@ -34,7 +34,7 @@ papergraph 是一款本地 Windows 桌面工具。观点、判断和待展开的
 
 ![英文使用示意图](docs/quickstart.svg)
 
-详见 [英文用户指南](docs/usage.md)、[Agent 接口](Agent%20guide.md) 和 [构建说明](README.md#build-and-test)。应用界面目前为英文，支持输入中文等 Unicode 文本。
+详见 [英文用户指南](docs/usage.md)、[Agent 接口](Agent%20guide.md) 和 [构建说明](README.md#build-and-test)。应用界面支持英文、简体中文和日文，可通过 **View → Language（视图 → 语言）** 即时切换，并记住选择。论文内容不会随界面语言改变。部分技术检查提示仍为英文，详见[语言支持说明](docs/localization.md)。
 
 项目采用 [MIT 许可证](LICENSE)。
 

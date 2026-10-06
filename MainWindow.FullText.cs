@@ -27,17 +27,17 @@ public partial class MainWindow
 
     void InitializeFullText()
     {
-        fullTextButton=new Button{Content="Full text",Width=82,ToolTip="Show or hide live full text",Margin=new Thickness(2,0,0,0)};
+        fullTextButton=new Button{Content=Localization.Text("Full text"),Width=82,ToolTip=Localization.Text("Show or hide live full text"),Margin=new Thickness(2,0,0,0)};
         AutomationProperties.SetName(fullTextButton,"Show live full text");
         ((StackPanel)FitButton.Parent).Children.Insert(((StackPanel)FitButton.Parent).Children.IndexOf(FitButton),fullTextButton);
         fullTextButton.Click+=(s,e)=>SetFullTextVisible(!fullTextVisible);
-        var menu=Item(ViewMenu,"Live full text",()=>SetFullTextVisible(!fullTextVisible));menu.IsCheckable=true;
+        var menu=LocalizedItem(ViewMenu,"Live full text",()=>SetFullTextVisible(!fullTextVisible));menu.IsCheckable=true;
         ViewMenu.SubmenuOpened+=(s,e)=>menu.IsChecked=fullTextVisible;
         fullTextTimer.Tick+=(s,e)=>{fullTextTimer.Stop();RefreshFullText();};
         CopyFullTextButton.Click+=(s,e)=>
         {
             RefreshFullText();var text=CurrentFullTextPage?.Text;if(string.IsNullOrEmpty(text))return;
-            try{Clipboard.SetText(text);Notify("Page text copied");}catch(Exception ex){Notify("Could not copy: "+ex.Message);}
+            try{Clipboard.SetText(text);Notify(Localization.Text("Page text copied"));}catch(Exception ex){Notify(Localization.Text("Could not copy: ")+ex.Message);}
         };
         FullTextBox.PreviewMouseLeftButtonUp+=(s,e)=>
         {
@@ -49,8 +49,8 @@ public partial class MainWindow
         };
         FullTextBox.SelectionChanged+=(s,e)=>RefreshFullTextCount();
         var copyMenu=Menu(FullTextBox,PlacementMode.MousePoint);
-        copyMenu.Items.Add(new MenuItem{Header="Copy",Command=ApplicationCommands.Copy,CommandTarget=FullTextBox});
-        copyMenu.Items.Add(new MenuItem{Header="Select all",Command=ApplicationCommands.SelectAll,CommandTarget=FullTextBox});FullTextBox.ContextMenu=copyMenu;
+        copyMenu.Items.Add(new MenuItem{Header=Localization.Text("Copy"),Command=ApplicationCommands.Copy,CommandTarget=FullTextBox});
+        copyMenu.Items.Add(new MenuItem{Header=Localization.Text("Select all"),Command=ApplicationCommands.SelectAll,CommandTarget=FullTextBox});foreach(var item in copyMenu.Items.OfType<MenuItem>())Localization.Bind(item,HeaderedItemsControl.HeaderProperty,item.Command==ApplicationCommands.Copy?"Copy":"Select all");FullTextBox.ContextMenu=copyMenu;
         TextOrderBox.TextChanged+=(s,e)=>
         {
             if(updating||editorKind!="edge"||editorId==null)return;
@@ -111,7 +111,7 @@ public partial class MainWindow
         {
             var index=i;var number=(i+1).ToString(CultureInfo.InvariantCulture);
             var tab=new RadioButton{Content=number,MinWidth=28,Width=double.NaN,GroupName="FullTextPages",Style=(Style)FindResource("NotePageTab"),
-                IsChecked=i==CurrentFullTextPageIndex,ToolTip=$"Page {number} · {CurrentFullText.Pages[i].Pieces.Count} points"};
+                IsChecked=i==CurrentFullTextPageIndex,ToolTip=Localization.Format("Page {0} · {1} points",number,CurrentFullText.Pages[i].Pieces.Count)};
             AutomationProperties.SetName(tab,"Full text page "+number);
             tab.Checked+=(s,e)=>SelectFullTextPage(index);FullTextPageTabs.Children.Add(tab);
         }
@@ -133,17 +133,17 @@ public partial class MainWindow
         FullTextBox.Document=flow;FullTextBox.ScrollToVerticalOffset(offset);
         RefreshFullTextCount();
         FullTextEmpty.Visibility=page?.Pieces.Count>0?Visibility.Collapsed:Visibility.Visible;
-        FullTextEmpty.Text=page?.BlockedPoints>0?"Reading order conflicts. Expand Checks to locate the connections.":"Connect points with Body arrows to see the text here.";
-        FullTextStatus.Text=(CurrentFullText.Pages.Count>1?$"Page {CurrentFullTextPageIndex+1}/{CurrentFullText.Pages.Count} · ":"")+$"{page?.Pieces.Count??0} points · {CurrentFullText.ExcludedPoints} excluded";
+        FullTextEmpty.Text=Localization.Text(page?.BlockedPoints>0?"Reading order conflicts. Expand Checks to locate the connections.":"Connect points with Body arrows to see the text here.");
+        FullTextStatus.Text=(CurrentFullText.Pages.Count>1?Localization.Format("Page {0}/{1} · ",CurrentFullTextPageIndex+1,CurrentFullText.Pages.Count):"")+Localization.Format("{0} points · {1} excluded",page?.Pieces.Count??0,CurrentFullText.ExcludedPoints);
         FullTextStatus.ToolTip="Points and blocked counts refer to this page. Excluded counts refer to the whole graph: isolated points and points connected only by reference or bidirectional arrows. Notes and container descriptions are not included.";
         if(page?.BlockedPoints>0)FullTextStatus.Text+=$" · {page.BlockedPoints} blocked";
         var issues=CurrentFullText.GeneralIssues.Concat(page?.Issues??[]).ToArray();
-        FullTextChecks.Header=$"Checks · {issues.Length}";
+        FullTextChecks.Header=Localization.Format("Checks · {0}",issues.Length);
         FullTextChecks.Visibility=issues.Length==0?Visibility.Collapsed:Visibility.Visible;
         FullTextIssueList.Children.Clear();
         foreach(var issue in issues)
         {
-            var button=new Button{Content=new TextBlock{Text=issue.Message,TextWrapping=TextWrapping.Wrap,FontSize=12},HorizontalAlignment=HorizontalAlignment.Left,HorizontalContentAlignment=HorizontalAlignment.Left,Padding=new Thickness(3,4,3,4),ToolTip="Click to locate the object to check"};
+            var button=new Button{Content=new TextBlock{Text=issue.Message,TextWrapping=TextWrapping.Wrap,FontSize=12},HorizontalAlignment=HorizontalAlignment.Left,HorizontalContentAlignment=HorizontalAlignment.Left,Padding=new Thickness(3,4,3,4),ToolTip=Localization.Text("Click to locate the object to check")};
             var id=issue.ObjectId;button.Click+=(s,e)=>{if(id!=null)FocusTextObject(id);};FullTextIssueList.Children.Add(button);
         }
         CopyFullTextButton.IsEnabled=page?.Text.Length>0;
@@ -160,7 +160,7 @@ public partial class MainWindow
             words=part.Words.ToString("N0",CultureInfo.InvariantCulture)+" / "+words;
             characters=part.Characters.ToString("N0",CultureInfo.InvariantCulture)+" / "+characters;
         }
-        FullTextCount.Text=$"Words: {words} · Characters: {characters}";
+        FullTextCount.Text=Localization.Format("Words: {0} · Characters: {1}",words,characters);
         FullTextCount.ToolTip=(selected?"Selection / current page. ":"Current page. ")+
             "Words: Chinese characters and Japanese kana count individually; other letters and numbers are grouped into words. Punctuation is excluded from words. " +
             "Characters: includes punctuation; excludes spaces, tabs and line breaks. Notes and excluded points are not counted.";
@@ -205,8 +205,8 @@ public partial class MainWindow
         TextRoleChoices.Children.Clear();
         foreach(var (role,label,tip) in new[]{("flow","Body","Sets the reading order of the body text"),("reference","Reference","A reference or association; does not set the reading order")})
         {
-            var button=new Button{Content=label,ToolTip=tip,Margin=new Thickness(2),Background=(edge.TextRole??"flow")==role?Ui("HoverBrush"):Brushes.Transparent};
-            AutomationProperties.SetName(button,"Text role: "+label);button.Click+=(s,e)=>SetTextRole(edge.Id,role);TextRoleChoices.Children.Add(button);
+            var button=new Button{Content=Localization.Text(label),ToolTip=Localization.Text(tip),Margin=new Thickness(2),Background=(edge.TextRole??"flow")==role?Ui("HoverBrush"):Brushes.Transparent};
+            AutomationProperties.SetName(button,Localization.Text("Text role: ")+Localization.Text(label));button.Click+=(s,e)=>SetTextRole(edge.Id,role);TextRoleChoices.Children.Add(button);
         }
         TextOrderPanel.Visibility=GraphFullText.IsReference(edge)?Visibility.Collapsed:Visibility.Visible;
         SetText(TextOrderBox,edge.TextOrder==0?"":edge.TextOrder.ToString(CultureInfo.InvariantCulture));

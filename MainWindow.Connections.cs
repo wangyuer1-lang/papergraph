@@ -25,9 +25,9 @@ public partial class MainWindow
             ConnectionDisplay.AcrossFrames=>"Across",
             _=>"All"
         };
-        ConnectionButton.Content="Links: "+label;
-        ConnectionButton.ToolTip="Click to cycle: All → Within □ → Across □\nWithin: endpoints share an innermost □. Across: different innermost □, or a □ to outside.\nOuter wrappers do not join separate inner □. Unframed links appear in All. Only visibility changes.";
-        AutomationProperties.SetName(ConnectionButton,"Show connections: "+label);
+        ConnectionButton.Content=Localization.Text("Links: ")+Localization.Text(label);
+        ConnectionButton.ToolTip=Localization.Text("Click to cycle: All → Within □ → Across □\nWithin: endpoints share an innermost □. Across: different innermost □, or a □ to outside.\nOuter wrappers do not join separate inner □. Unframed links appear in All. Only visibility changes.");
+        AutomationProperties.SetName(ConnectionButton,Localization.Text("Show connections: ")+Localization.Text(label));
     }
     void SetConnectionDisplay(ConnectionDisplay display)
     {
@@ -36,22 +36,24 @@ public partial class MainWindow
     }
     void BuildConnectionMenu()
     {
-        var menu=new MenuItem{Header="Connections"};
+        var menu=new MenuItem{Header=Localization.Text("Connections")};
         foreach(var (display,label) in new[]{(ConnectionDisplay.All,"All"),(ConnectionDisplay.WithinFrames,"Within □"),(ConnectionDisplay.AcrossFrames,"Across □")})
         {
             var item=Item(menu,label,()=>SetConnectionDisplay(display));item.IsCheckable=true;
             menu.SubmenuOpened+=(s,e)=>item.IsChecked=Graph.ConnectionDisplay==display;
         }
-        ViewMenu.Items.Add(menu);
+        Localization.Bind(menu,HeaderedItemsControl.HeaderProperty,"Connections");ViewMenu.Items.Add(menu);
     }
     void LoadViewSettings()
     {
         try
         {
             var path=Storage.CompatiblePath(dataDir,"settings.json","\u754c\u9762.json");
+            language=Localization.SystemLanguage;
             if(!File.Exists(path))return;
             var settings=JsonNode.Parse(File.ReadAllText(path));
             if(settings?["collapsedCategories"] is JsonArray collapsed)foreach(var item in collapsed)if(item?.GetValue<string>() is string id)collapsedCategories.Add(id);
+            language=Localization.Normalize(settings?["language"]?.GetValue<string>()??Localization.SystemLanguage);
             dark=settings?["dark"]?.GetValue<bool>()??false;
             fullTextVisible=settings?["fullTextVisible"]?.GetValue<bool>()??false;
             if(Enum.TryParse<ConnectionDisplay>(settings?["connectionDisplay"]?.GetValue<string>(),out var mode)&&Enum.IsDefined(mode))Graph.ConnectionDisplay=mode;
@@ -66,7 +68,7 @@ public partial class MainWindow
             try{settings=JsonNode.Parse(File.ReadAllText(path)) as JsonObject??new();}catch{settings=new();}
             settings["collapsedCategories"]=new JsonArray(collapsedCategories.Select(id=>JsonValue.Create(id)).ToArray());
             settings["dark"]=dark;settings["connectionDisplay"]=Graph.ConnectionDisplay.ToString();
-            settings["fullTextVisible"]=fullTextVisible;
+            settings["fullTextVisible"]=fullTextVisible;settings["language"]=language;
             File.WriteAllText(path,settings.ToJsonString());
         }
         catch { }

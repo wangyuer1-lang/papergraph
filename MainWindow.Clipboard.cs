@@ -20,9 +20,9 @@ public partial class MainWindow
         {
             var fragment=GraphClipboard.Capture(doc,Graph.Selected,Graph.SelectedRegions);
             GraphClipboardStore.Write(fragment.Serialize());
-            Graph.Focus();Notify("Copied · right-click a destination and choose Paste");return true;
+            Graph.Focus();Notify(Localization.Text("Copied · right-click a destination and choose Paste"));return true;
         }
-        catch(Exception ex){Notify("Could not copy: "+ex.Message);return false;}
+        catch(Exception ex){Notify(Localization.Text("Could not copy: ")+ex.Message);return false;}
     }
     Point PastePosition()=>Graph.IsMouseOver?Graph.ToWorld(Mouse.GetPosition(Graph)):
         Graph.ToWorld(new Point(Graph.ActualWidth/2,Graph.ActualHeight/2));
@@ -33,15 +33,15 @@ public partial class MainWindow
         try
         {
             var text=GraphClipboardStore.Read();
-            if(text==null){Notify("Copy a papergraph selection first");return false;}
+            if(text==null){Notify(Localization.Text("Copy a papergraph selection first"));return false;}
             var result=GraphClipboard.PreparePaste(doc,GraphFragment.Parse(text),position,Graph.Scope,Graph.BoardBounds);
             Remember();doc=result.Document;Graph.Document=doc;CancelLink();Graph.ClearAllSelection();
             Graph.Selected=result.NodeIds;Graph.SelectedRegions=result.RegionIds;
             // Select the entire pasted fragment for immediate rigid movement.
             Graph.SelectionBox=result.Bounds;ensurePending=false;Changed();Graph.Focus();
-            Notify("Pasted",true);return true;
+            Notify(Localization.Text("Pasted"),true);return true;
         }
-        catch(Exception ex){Notify("Could not paste: "+ex.Message);return false;}
+        catch(Exception ex){Notify(Localization.Text("Could not paste: ")+ex.Message);return false;}
     }
     internal bool RouteGraphClipboard(Key key,ModifierKeys modifiers,IInputElement? focused,Point? position=null)
     {
@@ -52,8 +52,8 @@ public partial class MainWindow
     }
     void AddClipboardItems(ItemsControl menu,Point position)
     {
-        if(Graph.SelectionCount>0)Item(menu,"Copy",()=>CopyGraphSelection(),"Ctrl+C");
-        Item(menu,"Paste",()=>PasteGraphSelection(position),"Ctrl+V",CanPasteGraph());
+        if(Graph.SelectionCount>0)LocalizedItem(menu,"Copy",()=>CopyGraphSelection(),"Ctrl+C");
+        LocalizedItem(menu,"Paste",()=>PasteGraphSelection(position),"Ctrl+V",CanPasteGraph());
         menu.Items.Add(new Separator());
     }
 }

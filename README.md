@@ -35,6 +35,10 @@ Right-click a frame or selection to **Copy**, then right-click the destination t
 
 Right-click a graph title to rename it, save it to another folder, show its file in Explorer or move it to the Windows Recycle Bin.
 
+## Interface languages
+
+Choose **View → Language** for English, 简体中文 or 日本語. The interface switches immediately and remembers your choice. Your writing and graph files keep their original content. See [translation resources](docs/localization.md) for coverage and how to add a language.
+
 ## New in 0.14.3
 
 - **Live full text:** read the manuscript below the graph as you edit. Directional Body arrows determine the sequence; rings introduce line breaks and frames separate paragraphs. Disconnected manuscripts have separate pages. Reference arrows and isolated points stay out of the body, and checks identify ambiguous ordering and cycles. Click text to locate its source proposition.

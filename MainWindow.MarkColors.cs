@@ -19,12 +19,12 @@ public partial class MainWindow
         }
         panel.Children.Add(row);
         var actions=new StackPanel{Orientation=Orientation.Horizontal};
-        var automatic=new Button{Content="Automatic",FontSize=12,ToolTip="Remove mark and restore automatic colors"};AutomationProperties.SetName(automatic,"Clear mark color");
+        var automatic=new Button{Content=Localization.Text("Automatic"),FontSize=12,ToolTip=Localization.Text("Remove mark and restore automatic colors")};AutomationProperties.SetName(automatic,"Clear mark color");
         automatic.Click+=(s,e)=>{menu.IsOpen=false;SetMarkColor(id,null);};actions.Children.Add(automatic);
-        var custom=new Button{Content="Custom…",FontSize=12};custom.Click+=(s,e)=>
+        var custom=new Button{Content=Localization.Text("Custom…"),FontSize=12};custom.Click+=(s,e)=>
         {
-            menu.IsOpen=false;var value=Ask("Mark color",MarkColor(id)??GraphMarkColors.Palette[0].Color);if(value==null)return;
-            if(!GraphMarkColors.Valid(value)){Notify("Use # followed by six hexadecimal digits");return;}SetMarkColor(id,value);
+            menu.IsOpen=false;var value=Ask(Localization.Text("Mark color"),MarkColor(id)??GraphMarkColors.Palette[0].Color);if(value==null)return;
+            if(!GraphMarkColors.Valid(value)){Notify(Localization.Text("Use # followed by six hexadecimal digits"));return;}SetMarkColor(id,value);
         };actions.Children.Add(custom);panel.Children.Add(actions);menu.Items.Add(panel);return menu;
     }
     void ShowColors(FrameworkElement target,string id)
