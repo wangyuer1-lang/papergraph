@@ -37,3 +37,7 @@ papergraph 是一款本地 Windows 桌面工具。观点、判断和待展开的
 详见 [英文用户指南](docs/usage.md)、[Agent 接口](Agent%20guide.md) 和 [构建说明](README.md#build-and-test)。应用界面目前为英文，支持输入中文等 Unicode 文本。
 
 项目采用 [MIT 许可证](LICENSE)。
+
+## 支持 papergraph
+
+如果 papergraph 对你的论文写作或审阅有帮助，欢迎[赞助我](https://github.com/sponsors/wangyuer1-lang)，支持我继续维护项目、改进写作体验和完善使用文档。金额随意，谢谢你的支持！
