@@ -30,7 +30,7 @@ public static class BoardTests
         Check(graph.VisibleLinks.Count()==1&&graph.VisibleRegions.Count==1&&graph.VisibleRegions[0].Id==inner.Id,"Threshold board hides external edges and overlapping noncontained frames");
         Check(graph.ClampToBoard(new Point(-300,900)).X>=0&&graph.ClampToBoard(new Point(-300,900)).Y<=300,"New nodes remain inside active board");
         graph.SetBoard(null,null);var coincident=new Region{Id="same",IsAbsolute=true,X=0,Y=0,Width=400,Height=300};doc.Regions.Add(coincident);graph.RefreshData();
-        foreach(var zoom in new[]{.10,.25,1d,2d}){graph.SetView(zoom,new Point());var grips=graph.RegionGrips();Check((grips[a.Id]-grips[coincident.Id]).Length*zoom>=23,"Coincident frames retain separate screen-sized handles");Check(graph.HitRegion(grips[a.Id])?.Id==a.Id&&graph.HitRegion(grips[coincident.Id])?.Id==coincident.Id,"Either coincident frame can be independently picked");}
+        foreach(var zoom in new[]{.10,.25,1d,2d}){graph.SetView(zoom,new Point());var grips=graph.RegionGrips();Check((grips[a.Id]-grips[coincident.Id]).Length>=23,"Coincident frames retain separate handles in world coordinates");Check(graph.HitRegion(grips[a.Id])?.Id==a.Id&&graph.HitRegion(grips[coincident.Id])?.Id==coincident.Id,"Either coincident frame can be independently picked");}
         doc.Regions.Remove(coincident);
         var circle=doc.Collapse(["a","ab"],null);circle.Title="集成命题";
         var directory=Path.Combine(Path.GetTempPath(),"yujian-boards-"+Guid.NewGuid().ToString("N"));Directory.CreateDirectory(directory);Storage.Save(Path.Combine(directory,"Example.papergraph"),doc);

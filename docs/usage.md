@@ -2,6 +2,22 @@
 
 A native Windows graph workspace for building an argument and writing a paper. Open `papergraph.exe`; no browser or account is needed.
 
+## Live full text (0.14.3)
+
+Click **Full text** in the toolbar (or View → Live full text) to open live manuscript pages below the graph. The panel stays open while editing; a small divider adjusts its height. Changes to propositions, connections, grouping, frames, undo/redo and graph switches update the text automatically. Entering an internal board does not limit the preview to that board. Click a sentence to locate its original point and edit it in the existing right panel. **Copy** copies only the current text page.
+
+The header shows live **Words** and **Characters** counts for the current text page. Selecting text shows selection / page totals. Chinese characters and Japanese kana count individually; other letters and numbers form words (including internal apostrophes, hyphens and decimal points). Punctuation is excluded from words. Characters include punctuation but exclude whitespace; combining accents and emoji sequences count as single visible characters. Hover over the counts to see the rules. Notes, excluded points and other text pages are not counted. Counts follow edits, page switches and Undo/Redo without changing the graph.
+
+- Ordinary point propositions supply the text. Notes, graph captions, and circle/frame descriptions are not copied into the manuscript. Connected empty points are reported. Isolated points stay out, including isolated points enclosed by a connected container.
+- Disconnected Body structures appear on separate numbered text pages. Their order follows each structure's earliest surviving Body connection in saved creation order, not its position on the canvas. Adding a Body bridge merges the pages at the earlier position, and removing it splits them again. Reference and bidirectional arrows do not merge pages. Save/load and Undo/Redo preserve the underlying connection order. These are read-only text views, not new saved graphs or Notes pages.
+- Sharing a circle or frame does not merge disconnected structures, even if its outline has external arrows. A container with one connected member manuscript can carry that manuscript into the surrounding Body flow. Multiple independent member manuscripts remain separate until explicitly connected; an ambiguous container continuation is reported. Empty framework-only components do not create text pages. Isolated member points remain excluded. Selecting a point or connection follows its text page; edits and merge/split operations preserve the currently viewed component where possible.
+- Directional **Body** connections determine the reading order. Points concatenate without invented wording or punctuation; a space is inserted between adjacent Latin words. Entering or leaving ◎ starts a new line; □ boundaries separate paragraphs with a blank line. Nested containers never duplicate points.
+- Select a connection and choose **Body** or **Reference** under **Text role**. This setting is independent of Support, Opposition, Inference and the other existing symbols. **Reference** lines are dashed and excluded from reading order. A point connected only by reference lines is excluded; a referenced point already in the body appears once in its normal position.
+- Give outgoing body branches distinct **Branch order** numbers (1, 2, 3…) when their reading order matters. Lower numbers come first, subject to arrow dependencies. A shared downstream point appears once, after all preceding branches. Redundant transitive arrows do not duplicate content.
+- **Checks** lists the current page's unresolved branches, multiple starts, overlapping frame membership, member-to-container arrows, and cycles or incompatible cross-group ordering. Unresolved double-headed arrows and ambiguous container continuations are reported on every page. Click an item to locate its object. Unordered branches and multiple starts within one connected page use provisional top-to-bottom, then left-to-right positions and are explicitly reported. Cyclic/blocked sections are omitted and counted until their order is resolved; an entirely blocked page remains available for checking. The preview is not a declaration that the manuscript is complete.
+
+Existing arrows retain their symbols and are initially treated as body connections. The app never guesses which old arrows were citations or rewrites the source graph. All new role/order settings persist, copy/paste and undo with their relation. Viewing text changes no propositions, notes, marks or graph coordinates.
+
 ## Writing
 
 Select a point, ◎ or □. The fixed right panel has two independent fields: the upper two thirds are the **Proposition**, and the lower third is **Notes**. Both save automatically. Only the proposition affects point size; notes never enlarge a point. A ◎ surrounds its graph and sizes itself from the contents. Each field scrolls independently.
@@ -14,6 +30,7 @@ Ordinary points have a clear size progression from short claims to long paragrap
 
 ## Navigating and selecting
 
+- Double-click empty canvas to add a point and start writing. Adding points preserves the current zoom and pan, including near viewport edges and inside boards.
 - Left-drag empty canvas to pan. The wheel zooms around the pointer, including over the bottom action bar. Inside the writing panel, the wheel scrolls text.
 - Right-drag to select points and fully enclosed □. Drag any selected object or the empty area inside the selection to move the selection. Shared points move only once.
 - The bottom bar contains **□**, **◎** and **Delete**. ◎ requires at least two connected points. Selected □ can join that internal board.
@@ -21,17 +38,18 @@ Ordinary points have a clear size progression from short claims to long paragrap
 - Right-click a □ or a selected area and choose **Copy**, then right-click a destination and choose **Paste**. **Ctrl+C / Ctrl+V** work on the canvas too; keyboard paste uses the pointer position, or the view centre when the pointer is outside the canvas. A copied □ includes its points, nested □ and ◎, internal connections, titles, propositions, notes, colors and relative positions. Paste works across Graphs pages and open papergraph instances, creates independent IDs and is undone in one step. Links to objects outside the copied selection are omitted. A frame board keeps the pasted fragment inside its bounds; if it is too small, enlarge it or paste in the overview. Text editors keep normal text copy/paste. Finishing a right-drag selection still shows the three bottom actions; right-click the selection again to open its copy menu.
 - Delete removes selected objects. Deleting a □ alone keeps its unselected points. Undo restores a mixed deletion in one step.
 - **Fit all / F** shows every object on the current board, including frames and expanded rings. The wheel can zoom out below the former 10% limit. **Fit edit / Shift+F** fits the same board with a 10% minimum for editing. Z focuses a selection or pointer location; press it again to restore the overview.
-- Arrow keys select a nearby point in that direction and show its writing in the right panel. With no selection, the first arrow selects the point nearest the center of the view. Off-screen selections come into view automatically. Navigation stays inside the current board and stops at its edges. While editing text, arrows move the caret normally; Esc returns focus to the graph, and Enter opens the selected point's writing.
+- Arrow keys select a nearby point in that direction and show its writing in the right panel. With no selection, the first arrow selects the point nearest the center of the view. Off-screen selections come into view automatically. A single arrow stays within the current frame. Quickly tap the same arrow twice (within 350 ms) to jump to the nearest frame in that direction and select a proposition inside it. Holding the key does not trigger a frame jump. Empty frames can also be reached. From an open frame board, a jump opens the neighboring board; Back / Esc returns to the previous board. While editing text, arrows move the caret normally; Esc returns focus to the graph, and Enter opens the selected point's writing.
 
 ## □ and internal boards
 
 - R draws an absolute □. The bottom □ action uses the selection rectangle.
 - A single left-click selects a □. Right-drag its border or top grip to move it. Right-drag its lower-right handle to resize it.
+- Top grips on □ and ◎ scale with the canvas. Overlapping frame grips stay on their own top borders; at very small zoom, enlarge the view or use the overlap picker to choose coincident frames.
 - □ movement defaults to the □ alone. Hold Shift during a right-drag to move its contents, or choose that mode from its context menu.
 - New □ get different colors. Points inherit their containing □'s color; intersections have their own color. Overlapping □ remain independently movable.
 - To flag a point, ring or connection for review, select it and click the color dot at the top of its card (or right-click → Mark color). Choose Red, Orange, Yellow, Green, Blue or Purple. Marks override frame colors, remain visible in both themes, save locally and support undo. **Automatic** removes the mark and restores the current automatic color; **Custom…** accepts a hex color.
 - ◎ requires a connected selection from one parent group. Its ring automatically encloses its members, including nested groups. Click the ring border to edit its proposition and notes; drag the border to move all members together. Click or drag a point inside to work on that point alone. Right-click the ring to ungroup without moving its contents. Existing collapsed groups open automatically with their writing and connections preserved.
-- Double-click a □ or ◎ to enter its board. Back / Esc restores the previous board and view. Space toggles titles without opening or closing an internal board.
+- Double-click a □ or ◎ to enter its board. Inside a □, a faint outline keeps the existing movement boundary visible in both themes and at every zoom. Back / Esc restores the previous board and view. Space toggles titles without opening or closing an internal board.
 
 ## Relations and layout
 
@@ -64,3 +82,14 @@ Right-click a graph title for Rename, Save as…, Show in folder and Delete grap
 ## Agent page management (0.12.12)
 
 The local agent interface can list Graphs pages, read or search another page without opening it, create a named empty page, copy an entire page, and switch pages. Background creation is the default, so the page you are editing stays open. Copying preserves writing, notes, rings, frames, positions, colors and connections. Pending changes save before a page operation, revisions prevent stale edits, and retrying a completed create/copy does not create another copy. See Agent guide.md for the JSON operations and examples.
+
+
+## Categories and frame writing (0.12.13)
+
+The left sidebar groups graphs under collapsible categories. Click **▣＋** beside Graphs to add one. Drag a graph onto a category, or right-click its title → **Move to category**. Right-click a category to rename it, create a graph inside it, or remove it while keeping its graphs in **Unfiled**. Categorizing never moves the original files. Categories and membership survive restarting; agents can list, create, rename, move and remove categories through the documented local interface.
+
+Frames now have separate **Title**, **Proposition** and **Notes** fields. Existing frame writing stays in Proposition. Select a frame and drag its connector near the upper-right border to a point, ring or another frame. You can also use the inspector's **↗**, **L**, or right-click → **Connect to…**, then click a target border or point. These are ordinary relations with editable direction, symbol, caption, notes and review color. They save, copy and undo with the graph. Press Space to display frame titles; full frame text remains in the right editor.
+
+## Notes pages
+
+Every object starts with four notes. Click `1 2 3 4` beside Notes to select a page; the current number is underlined. Page 1 is for your own writing and is empty on new objects. Agent notes go on pages 2–4. Existing text is preserved. All four pages save, undo, export and copy with their object. Frame titles appear above the frame.

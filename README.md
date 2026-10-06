@@ -23,7 +23,7 @@ Double-click a region or ring to focus on its internal board, then return to the
 
 ## Start writing
 
-1. Download the Windows x64 ZIP from [Releases](https://github.com/wangyuer1-lang/papergraph/releases/latest), extract it into a writable folder, then open `papergraph.exe`. The current downloadable app build is **0.12.12** and includes its .NET runtime.
+1. Download the Windows x64 ZIP from [Releases](https://github.com/wangyuer1-lang/papergraph/releases/latest), extract it into a writable folder, then open `papergraph.exe`. The current downloadable app build is **0.14.3** and includes its .NET runtime.
 2. Click **+** beside **Graphs** to create a graph, then enter its title in the top bar.
 3. Double-click the canvas to add a proposition. Select it to edit its body and notes.
 4. Drag its connection handle to another point or ring. Select the arrow to edit its meaning, direction and notes.
@@ -35,9 +35,21 @@ Right-click a frame or selection to **Copy**, then right-click the destination t
 
 Right-click a graph title to rename it, save it to another folder, show its file in Explorer or move it to the Windows Recycle Bin.
 
+## New in 0.14.3
+
+- **Live full text:** read the manuscript below the graph as you edit. Directional Body arrows determine the sequence; rings introduce line breaks and frames separate paragraphs. Disconnected manuscripts have separate pages. Reference arrows and isolated points stay out of the body, and checks identify ambiguous ordering and cycles. Click text to locate its source proposition.
+- **Words and characters:** live counts for the current text page and selected text, including Chinese, Japanese and mixed-language writing. Notes and excluded points are not counted.
+- **Four Notes pages:** each object has tabs `1 2 3 4`. The first page is reserved for your writing; agents write to pages 2–4. Notes remain separate from manuscript text.
+- **Frames and categories:** organize graphs in sidebar categories, connect frames directly and keep frame titles above their borders. Double-tap an arrow key to move into a nearby frame. Internal boards retain a faint frame boundary; grips scale with zoom, and adding a point keeps the camera in place.
+- **Agent interface:** read the ordered manuscript with `fullText`, distinguish Body and Reference relations, specify branch order, manage categories and edit the permitted Notes pages through the existing revision-checked interface.
+
+See the [user guide](docs/usage.md) for reading-order rules, navigation and counting details.
+
 ## Working with an agent
 
 The local agent interface can read the live document (including unsaved writing, IDs, relations, group membership and selection) and search its text. `addNodes` adds independent propositions. `editGraph` can create or update points, relations and rectangular regions, position objects, and create connected circular groups in the running app.
+
+`fullText` reads manuscript pages, source point IDs and ordering checks without operating the desktop window. `snapshot`, `search` and `fullText` also support inactive library pages. Notes page 1 is reserved for the author; ordinary agent writes use pages 2–4. Categories can be created, renamed and assigned through the same interface.
 
 Writes require the expected document, revision and a stable request UUID. Each accepted batch saves before reporting success and can be undone in one step. Stale writes are rejected so an agent cannot silently overwrite newer edits. The interface uses a Windows named pipe restricted to the current user. See the [request formats and CLI examples](Agent%20guide.md).
 
@@ -67,7 +79,7 @@ $test = Start-Process ./artifacts/build/papergraph.exe -ArgumentList '--self-tes
 if ($test.ExitCode -ne 0) { Get-Content ./artifacts/build/test-failure.txt; throw 'Self-tests failed' }
 ```
 
-Self-tests use isolated temporary documents and cover persistence, graph geometry, selection, grouping, camera controls, editor themes, agent operations and library management.
+Self-tests use isolated temporary documents and cover persistence, graph geometry, selection, grouping, camera controls, editor themes, live full text and counts, Notes pages, frame navigation, agent operations and library/category management.
 
 Create a portable Windows x64 build:
 

@@ -7,7 +7,7 @@ public static class GraphConnections
     public static HashSet<string> MatchingIds(GraphDocument doc, ConnectionDisplay display)
     {
         if(display==ConnectionDisplay.All)return doc.Edges.Select(e=>e.Id).ToHashSet();
-        var membership=doc.Nodes.ToDictionary(n=>n.Id,_=>new HashSet<string>());
+        var membership=doc.Nodes.Select(n=>n.Id).Concat(doc.Regions.Select(r=>r.Id)).ToDictionary(id=>id,_=>new HashSet<string>());
         var contents=new Dictionary<string,HashSet<string>>();
         foreach(var frame in doc.Regions)
         {
@@ -23,6 +23,7 @@ public static class GraphConnections
             .Concat(doc.Regions.Where(x=>x.Id!=r.Id&&x.Parent!=null&&contents[r.Id].Contains(x.Parent)).Select(x=>x.Id)).ToHashSet());
         foreach(var frames in membership.Values)
             frames.ExceptWith(frames.Where(id=>inner[id].Overlaps(frames)).ToArray());
+        foreach(var frame in doc.Regions)membership[frame.Id]=[frame.Id];
         var result=new HashSet<string>();
         foreach(var edge in doc.Edges)
         {

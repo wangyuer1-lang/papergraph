@@ -52,7 +52,7 @@ public static class GraphClipboard
         var graph=new GraphDocument
         {
             Nodes=source.Nodes.Where(n=>nodes.Contains(n.Id)).ToList(),
-            Edges=source.Edges.Where(e=>nodes.Contains(e.From)&&nodes.Contains(e.To)).ToList(),
+            Edges=source.Edges.Where(e=>(nodes.Contains(e.From)||regions.Contains(e.From))&&(nodes.Contains(e.To)||regions.Contains(e.To))).ToList(),
             Regions=source.Regions.Where(r=>regions.Contains(r.Id)).ToList()
         };
         foreach(var node in graph.Nodes)

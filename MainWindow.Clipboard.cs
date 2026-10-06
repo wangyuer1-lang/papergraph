@@ -46,7 +46,7 @@ public partial class MainWindow
     internal bool RouteGraphClipboard(Key key,ModifierKeys modifiers,IInputElement? focused,Point? position=null)
     {
         if(key is not (Key.C or Key.V)||modifiers!=ModifierKeys.Control||focused is TextBoxBase or MenuItem or MenuBase||
-           GraphList.IsKeyboardFocusWithin||Graph.IsPreview||Graph.IsInteracting||MainMenu.Items.OfType<MenuItem>().Any(m=>m.IsSubmenuOpen))return false;
+           GraphTree.IsKeyboardFocusWithin||Graph.IsPreview||Graph.IsInteracting||MainMenu.Items.OfType<MenuItem>().Any(m=>m.IsSubmenuOpen))return false;
         if(key==Key.C)CopyGraphSelection();else PasteGraphSelection(position??PastePosition());
         return true;
     }

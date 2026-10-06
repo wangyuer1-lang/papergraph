@@ -4,12 +4,13 @@ using System.Text.Json;
 using System.Text.RegularExpressions;
 namespace Papergraph;
 
-public class Proposition
+public class Proposition : IGraphNotes
 {
     public string Id {get;set;}=Guid.NewGuid().ToString("N");
     public string Title {get;set;}="";
     public string Caption {get;set;}="";
     public string Note {get;set;}="";
+    public List<NotePage> AdditionalNotes {get;set;}=[new(),new(),new()];
     public string Color {get;set;}="#6D9ED5";
     [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
     public string? MarkColor {get;set;}
@@ -20,7 +21,7 @@ public class Proposition
     public double X {get;set;}
     public double Y {get;set;}
 }
-public class Relation
+public class Relation : IGraphNotes
 {
     public string Id {get;set;}=Guid.NewGuid().ToString("N");
     public string From {get;set;}="";
@@ -28,15 +29,22 @@ public class Relation
     public string Label {get;set;}="Support";
     public string Caption {get;set;}="";
     public string Note {get;set;}="";
+    public List<NotePage> AdditionalNotes {get;set;}=[new(),new(),new()];
     public string Direction {get;set;}="forward";
+    [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+    public string? TextRole {get;set;}
+    [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingDefault)]
+    public int TextOrder {get;set;}
     [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
     public string? MarkColor {get;set;}
 }
-public class Region
+public class Region : IGraphNotes
 {
     public string Id {get;set;}=Guid.NewGuid().ToString("N");
     public string Title {get;set;}="Untitled □";
+    public string Caption {get;set;}="";
     public string Note {get;set;}="";
+    public List<NotePage> AdditionalNotes {get;set;}=[new(),new(),new()];
     public string Color {get;set;}="";
     public bool IsAbsolute {get;set;}
     public double X {get;set;}
@@ -66,15 +74,23 @@ public class GraphDocument
         if(Nodes.Count>5000||Edges.Count>20000) throw new InvalidDataException("A document supports up to 5,000 propositions and 20,000 relations.");
         if(Nodes.Any(n=>n!=null&&!GraphMarkColors.Valid(n.MarkColor))||Edges.Any(e=>e!=null&&!GraphMarkColors.Valid(e.MarkColor)))throw new InvalidDataException("Invalid mark color. Use #RRGGBB or automatic.");
         if(Regions.Any(r=>r!=null&&(r.Color==null||r.Color.Length>0&&!Regex.IsMatch(r.Color,"^#[0-9a-fA-F]{6}$"))))throw new InvalidDataException("Invalid □ color.");
+        if(Edges.Any(e=>e!=null&&(e.TextRole is not (null or "flow" or "reference")||e.TextOrder<0||e.TextOrder>9999)))throw new InvalidDataException("Invalid text role or branch order.");
+        foreach(var item in Nodes.Cast<IGraphNotes>().Concat(Edges).Concat(Regions))if(item!=null)GraphNotes.Validate(item);
         var ids=new HashSet<string>();
         foreach(var n in Nodes) if(n==null||string.IsNullOrEmpty(n.Id)||!ids.Add(n.Id)||n.Title==null||n.Caption==null||n.Note==null||n.Color==null||!Regex.IsMatch(n.Color,"^#[0-9a-fA-F]{6}$")||!(n.Kind=="point"||n.Kind=="circle")||!double.IsFinite(n.X)||!double.IsFinite(n.Y)||Math.Abs(n.X)>1e7||Math.Abs(n.Y)>1e7) throw new InvalidDataException("Invalid proposition data.");
         foreach(var n in Nodes) { var seen=new HashSet<string>{n.Id}; var p=n.Parent; while(p!=null) { var a=Node(p); if(a==null||a.Kind!="circle"||!seen.Add(p)) throw new InvalidDataException("Invalid ◎ hierarchy."); p=a.Parent; } }
-        foreach(var e in Edges) if(e==null||string.IsNullOrEmpty(e.Id)||!ids.Add(e.Id)||Node(e.From)==null||Node(e.To)==null||e.From==e.To||string.IsNullOrWhiteSpace(e.Label)||e.Caption==null||e.Note==null||!(e.Direction is "forward" or "reverse" or "both")) throw new InvalidDataException("Invalid relation data.");
-        foreach(var r in Regions) if(r==null||string.IsNullOrEmpty(r.Id)||!ids.Add(r.Id)||r.Title==null||r.Note==null||r.Members==null||r.Parent!=null&&Node(r.Parent)?.Kind!="circle"||!double.IsFinite(r.X)||!double.IsFinite(r.Y)||!double.IsFinite(r.Width)||!double.IsFinite(r.Height)||Math.Abs(r.X)>1e7||Math.Abs(r.Y)>1e7||r.Width<40||r.Height<40||r.Width>1e7||r.Height>1e7||!r.IsAbsolute&&(r.Members.Count==0||r.Members.Distinct().Count()!=r.Members.Count||r.Members.Any(id=>Node(id)==null||Node(id)!.Parent!=r.Parent))) throw new InvalidDataException("Invalid □ data.");
+        foreach(var e in Edges) if(e==null||string.IsNullOrEmpty(e.Id)||!ids.Add(e.Id)||!HasEndpoint(e.From)||!HasEndpoint(e.To)||e.From==e.To||string.IsNullOrWhiteSpace(e.Label)||e.Caption==null||e.Note==null||!(e.Direction is "forward" or "reverse" or "both")) throw new InvalidDataException("Invalid relation data.");
+        foreach(var r in Regions) if(r==null||string.IsNullOrEmpty(r.Id)||!ids.Add(r.Id)||r.Title==null||r.Caption==null||r.Note==null||r.Members==null||r.Parent!=null&&Node(r.Parent)?.Kind!="circle"||!double.IsFinite(r.X)||!double.IsFinite(r.Y)||!double.IsFinite(r.Width)||!double.IsFinite(r.Height)||Math.Abs(r.X)>1e7||Math.Abs(r.Y)>1e7||r.Width<40||r.Height<40||r.Width>1e7||r.Height>1e7||!r.IsAbsolute&&(r.Members.Count==0||r.Members.Distinct().Count()!=r.Members.Count||r.Members.Any(id=>Node(id)==null||Node(id)!.Parent!=r.Parent))) throw new InvalidDataException("Invalid □ data.");
     }
     public bool MaterializeRegions()
     {
         bool changed=false;foreach(var r in Regions.Where(r=>!r.IsAbsolute)){var box=System.Windows.Rect.Empty;foreach(var id in r.Members)if(Node(id) is Proposition n)box.Union(GraphStyle.Bounds(n));if(box.IsEmpty)continue;box.Inflate(28,28);r.X=box.X;r.Y=box.Y;r.Width=box.Width;r.Height=box.Height;r.IsAbsolute=true;r.Members.Clear();changed=true;}return changed;
+    }
+    public Region? Frame(string? id)=>Regions.FirstOrDefault(r=>r.Id==id);
+    public bool HasEndpoint(string id)=>Node(id)!=null||Frame(id)!=null;
+    public void DeleteRegions(IEnumerable<string> roots)
+    {
+        var ids=roots.ToHashSet();Regions.RemoveAll(r=>ids.Contains(r.Id));Edges.RemoveAll(e=>ids.Contains(e.From)||ids.Contains(e.To));
     }
     public Proposition? Node(string? id)=>Nodes.FirstOrDefault(n=>n.Id==id);
     public List<Proposition> Visible(string? scope)=>Nodes.Where(n=>n.Parent==scope).ToList();
@@ -115,7 +131,7 @@ public class GraphDocument
     public void Dissolve(string id)
     {
         var c=Node(id)??throw new InvalidOperationException("The ◎ does not exist.");
-        bool keep=c.Title.Length>0||c.Caption.Length>0||c.Note.Length>0||Edges.Any(e=>e.From==id||e.To==id);
+        bool keep=c.Title.Length>0||c.Caption.Length>0||GraphNotes.AllText(c).Length>0||Edges.Any(e=>e.From==id||e.To==id);
         var groupBox=GraphGroups.Bounds(this,c);var groupCenter=new System.Windows.Point(groupBox.X+groupBox.Width/2,groupBox.Y+groupBox.Height/2);
         var children=Visible(id);var shift=c.Expanded||children.Count==0?new System.Windows.Vector():GraphStyle.Center(c)-new System.Windows.Point(children.Average(n=>GraphStyle.Center(n).X),children.Average(n=>GraphStyle.Center(n).Y));
         if(shift.Length<.001)shift=new System.Windows.Vector();
@@ -127,7 +143,7 @@ public class GraphDocument
             var restored=c.RegionMembership!=null&&c.RegionMembership.TryGetValue(r.Id,out var prior)?children.Where(n=>prior.Contains(n.Id)):children;
             r.Members.AddRange(restored.Select(n=>n.Id).Where(child=>!r.Members.Contains(child)));
         }
-        if(keep){var center=c.Expanded?groupCenter:GraphStyle.Center(c);c.Kind="point";c.Expanded=false;c.X=center.X-125;c.Y=center.Y-60;c.RegionMembership=[];}else Nodes.Remove(c);Regions.RemoveAll(r=>!r.IsAbsolute&&r.Members.Count==0);
+        if(keep){var center=c.Expanded?groupCenter:GraphStyle.Center(c);c.Kind="point";c.Expanded=false;c.X=center.X-125;c.Y=center.Y-60;c.RegionMembership=[];}else Nodes.Remove(c);DeleteRegions(Regions.Where(r=>!r.IsAbsolute&&r.Members.Count==0).Select(r=>r.Id).ToArray());
     }
     public HashSet<string> Descendants(IEnumerable<string> roots)
     {
@@ -135,7 +151,7 @@ public class GraphDocument
     }
     public void DeleteNodes(IEnumerable<string> roots)
     {
-        var ids=Descendants(roots); Nodes.RemoveAll(n=>ids.Contains(n.Id));Edges.RemoveAll(e=>ids.Contains(e.From)||ids.Contains(e.To));Regions.RemoveAll(r=>r.Parent!=null&&ids.Contains(r.Parent));foreach(var r in Regions)r.Members.RemoveAll(ids.Contains);Regions.RemoveAll(r=>!r.IsAbsolute&&r.Members.Count==0);
+        var ids=Descendants(roots); Nodes.RemoveAll(n=>ids.Contains(n.Id));Edges.RemoveAll(e=>ids.Contains(e.From)||ids.Contains(e.To));DeleteRegions(Regions.Where(r=>r.Parent!=null&&ids.Contains(r.Parent)).Select(r=>r.Id).ToArray());foreach(var r in Regions)r.Members.RemoveAll(ids.Contains);DeleteRegions(Regions.Where(r=>!r.IsAbsolute&&r.Members.Count==0).Select(r=>r.Id).ToArray());
     }
     public string Markdown()
     {
@@ -147,17 +163,18 @@ public class GraphDocument
             {
                 var heading=Name(n);b.AppendLine(new string('#',Math.Min(level,6))+" "+(heading.Length==0?"Untitled proposition":heading));b.AppendLine();
                 if(!string.IsNullOrWhiteSpace(n.Caption)&&n.Title.Length>0){b.AppendLine(n.Title);b.AppendLine();}
-                if(n.Note.Length>0){b.AppendLine(n.Note);b.AppendLine();}if(n.Kind=="circle")Walk(n.Id,level+1);
+                if(GraphNotes.AllText(n).Length>0){b.AppendLine(GraphNotes.AllText(n));b.AppendLine();}if(n.Kind=="circle")Walk(n.Id,level+1);
             }
         }
         Walk(null,2);b.AppendLine("## Relations\n");
+        string EndpointName(string id)=>Node(id) is Proposition n?Name(n):Frame(id) is Region r?string.IsNullOrWhiteSpace(r.Caption)?r.Title:r.Caption:"";
         foreach(var e in Edges)
         {
             var title=string.IsNullOrWhiteSpace(e.Caption)?"":e.Caption+": ";
-            b.AppendLine("- "+title+Name(Node(e.From))+" ["+GraphStyle.RelationName(e.Label)+"] "+(e.Direction=="both"?"↔":e.Direction=="reverse"?"←":"→")+" "+Name(Node(e.To)));
-            if(e.Note.Length>0){b.AppendLine();foreach(var line in e.Note.Replace("\r\n","\n").Split('\n'))b.AppendLine("    "+line);b.AppendLine();}
+            b.AppendLine("- "+title+EndpointName(e.From)+" ["+GraphStyle.RelationName(e.Label)+"] "+(e.Direction=="both"?"↔":e.Direction=="reverse"?"←":"→")+" "+EndpointName(e.To));
+            if(GraphNotes.AllText(e).Length>0){b.AppendLine();foreach(var line in GraphNotes.AllText(e).Replace("\r\n","\n").Split('\n'))b.AppendLine("    "+line);b.AppendLine();}
         }
-        b.AppendLine("\n## □\n");foreach(var r in Regions){b.AppendLine("### "+r.Title);if(r.Note.Length>0)b.AppendLine(r.Note);if(!r.IsAbsolute)b.AppendLine(string.Join("; ",r.Members.Select(id=>Name(Node(id)))));b.AppendLine();}return b.ToString();
+        b.AppendLine("\n## □\n");foreach(var r in Regions){b.AppendLine("### "+(string.IsNullOrWhiteSpace(r.Caption)?r.Title:r.Caption));if(r.Caption.Length>0&&r.Title.Length>0)b.AppendLine(r.Title);if(GraphNotes.AllText(r).Length>0)b.AppendLine(GraphNotes.AllText(r));if(!r.IsAbsolute)b.AppendLine(string.Join("; ",r.Members.Select(id=>Name(Node(id)))));b.AppendLine();}return b.ToString();
     }
     public static GraphDocument Demo()=>new(){Title="How does writing help us think?",Nodes=[
         new(){Id="a",Title="Writing helps us develop understanding, as well as record conclusions.",Note="This is the central proposition of the example paper.\n\nReplace it with a claim from your own research. Use this space for context, sources and examples. Notes do not change the size of the point.",X=435,Y=195,Color="#719AC7"},

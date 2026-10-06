@@ -66,7 +66,7 @@ internal static class AgentProtocol
 {
     internal static string Revision(GraphDocument doc)=>Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(doc.Serialize())));
     internal static string Required(JsonElement request,string name)=>request.TryGetProperty(name,out var value)&&value.ValueKind==JsonValueKind.String&&!string.IsNullOrWhiteSpace(value.GetString())?value.GetString()!:throw new InvalidDataException("Missing "+name+".");
-    internal static object Node(Proposition n)=>new{id=n.Id,caption=n.Caption,body=n.Title,note=n.Note,kind=n.Kind,parentId=n.Parent,x=n.X,y=n.Y,color=n.Color,markColor=n.MarkColor};
+    internal static object Node(Proposition n)=>new{id=n.Id,caption=n.Caption,body=n.Title,note=n.Note,notePages=GraphNotes.Snapshot(n),kind=n.Kind,parentId=n.Parent,x=n.X,y=n.Y,color=n.Color,markColor=n.MarkColor};
     internal static (GraphDocument Document,string[] Ids,bool AlreadyApplied) Prepare(GraphDocument doc,string file,JsonElement request)
     {
         if(!string.Equals(Path.GetFullPath(Required(request,"expectedDocument")),Path.GetFullPath(file),StringComparison.OrdinalIgnoreCase))throw new InvalidDataException("The active document changed. Read a fresh snapshot.");
@@ -78,12 +78,13 @@ internal static class AgentProtocol
         {
             string Text(string key)=>item.TryGetProperty(key,out var value)?value.GetString()??"":"";
             var id="agent-"+requestGuid.ToString("N")+"-"+index++;
-            additions.Add(new(){Id=id,Caption=Text("caption"),Title=Required(item,"body"),Note=Text("note"),Parent=anchor.Parent,Color=anchor.Color});
+            var addition=new Proposition{Id=id,Caption=Text("caption"),Title=Required(item,"body"),Parent=anchor.Parent,Color=anchor.Color};
+            GraphNotes.ApplyAgent(addition,item);additions.Add(addition);
         }
         var ids=additions.Select(n=>n.Id).ToArray();var existing=additions.Select(n=>doc.Node(n.Id)).ToArray();
         if(existing.Any(n=>n!=null))
         {
-            if(additions.Zip(existing).All(pair=>pair.Second is Proposition n&&n.Caption==pair.First.Caption&&n.Title==pair.First.Title&&n.Note==pair.First.Note&&n.Parent==pair.First.Parent))return(doc,ids,true);
+            if(additions.Zip(existing).All(pair=>pair.Second is Proposition n&&n.Caption==pair.First.Caption&&n.Title==pair.First.Title&&n.Note==pair.First.Note&&JsonSerializer.Serialize(n.AdditionalNotes)==JsonSerializer.Serialize(pair.First.AdditionalNotes)&&n.Parent==pair.First.Parent))return(doc,ids,true);
             throw new InvalidDataException("This requestId was already used with different content or only some nodes remain. Inspect the graph before retrying.");
         }
         if(Required(request,"expectedRevision")!=Revision(doc))throw new InvalidDataException("Document content changed. Read a fresh snapshot before adding nodes.");

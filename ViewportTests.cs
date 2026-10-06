@@ -1,5 +1,6 @@
 using System.IO;
 using System.Windows;
+using System.Windows.Threading;
 namespace Papergraph;
 
 public static class ViewportTests
@@ -35,6 +36,35 @@ public static class ViewportTests
         graph.SetView(.10,new Point(40,20));Wheel(-120,new Point(300,200));Check(graph.Zoom<.10,"Wheel can zoom out past the old minimum");Wheel(120,new Point(300,200));
         graph.SetView(3.2,new Point(40,20));Wheel(-120,new Point(300,200));
         Check(graph.Document.Serialize()==original,"Zoom never changes point, edge or frame data");
-        window.Close();File.AppendAllText(Path.Combine(AppContext.BaseDirectory,"test-results.txt"),"PASS: pointer-anchored wheel zoom, mixed-selection/footer zoom, post-drag zoom, editor/menu isolation, zoom-limit reversal and document preservation.\n");
+        window.Close();VerifyCreationView();File.AppendAllText(Path.Combine(AppContext.BaseDirectory,"test-results.txt"),"PASS: pointer-anchored wheel zoom, mixed-selection/footer zoom, post-drag zoom, editor/menu isolation, zoom-limit reversal, document preservation and stable camera on point creation.\n");
+    }
+    static void VerifyCreationView()
+    {
+        var directory=Path.Combine(Path.GetTempPath(),"papergraph-create-view-"+Guid.NewGuid().ToString("N"));Directory.CreateDirectory(directory);
+        var document=new GraphDocument{Nodes=[new(){Id="ring",Kind="circle",Expanded=true,X=4000,Y=4000}],Regions=[new(){Id="frame",IsAbsolute=true,X=-2000,Y=-2000,Width=4000,Height=4000}]};
+        Storage.Save(Path.Combine(directory,"Example.papergraph"),document);
+        var window=new MainWindow(directory);var graph=window.Graph;
+        graph.Measure(new Size(900,650));graph.Arrange(new Rect(0,0,900,650));
+        void Drain()
+        {
+            var pending=new DispatcherFrame();window.Dispatcher.BeginInvoke(()=>pending.Continue=false,DispatcherPriority.Background);Dispatcher.PushFrame(pending);
+            for(int i=0;i<90;i++)graph.AdvanceView(1d/60);
+        }
+        try
+        {
+            foreach(var board in new[]{"canvas","frame","ring"})
+            {
+                graph.SetBoard(board=="ring"?"ring":null,board=="frame"?"frame":null);
+                foreach(var zoom in new[]{.05,.4,1d,3.2})
+                foreach(var screen in new[]{new Point(450,325),new Point(15,15),new Point(885,635)})
+                {
+                    graph.SetView(zoom,new Point(127,-63));var camera=(graph.Zoom,graph.Offset);var count=graph.Document.Nodes.Count;
+                    window.AddNode(graph.ToWorld(screen));Drain();
+                    if(graph.Document.Nodes.Count!=count+1||graph.Selected.Count!=1||graph.Document.Node(graph.Selected.Single())?.Parent!=graph.Scope)throw new Exception("Adding a point creates and selects one point on the current board");
+                    if((graph.Zoom,graph.Offset)!=camera)throw new Exception($"Point creation must preserve zoom and pan after deferred selection: {board}, zoom {zoom}, screen {screen}; {camera} became {(graph.Zoom,graph.Offset)}");
+                }
+            }
+        }
+        finally{window.Close();}
     }
 }

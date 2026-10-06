@@ -4,7 +4,7 @@ using System.Windows.Input;
 using System.Windows.Media;
 namespace Papergraph;
 
-public sealed class GraphSurface : FrameworkElement
+public sealed partial class GraphSurface : FrameworkElement
 {
     internal const double MinimumZoom=1e-9,EditingMinimumZoom=.10,MaximumZoom=3.2;
     GraphDocument document=new();string? scope,boardRegion;
@@ -75,7 +75,7 @@ public sealed class GraphSurface : FrameworkElement
     (double Zoom,Point Offset,Size Viewport,double Dpi)? captionView;
     Brush captionBrush=GraphStyle.Brush("#526479");
     bool geometryDirty=true;double geometryZoom=-1;
-    string? hoverId,hoverEdge,linkTarget;
+    string? hoverId,hoverEdge,hoverRegion,linkTarget;
     Brush background=GraphStyle.Brush("#F7F8FA"),edgeBrush=GraphStyle.Brush("#65788F"),accent=GraphStyle.Brush("#356FBD"),regionBrush=GraphStyle.Brush("#AAB8C9");
     Point down,last,linkEnd;bool dragging,panning,lasso,moved,linkDragging,rightGesture,drawingBox,resizingRegion;
     Region? movingRegion;Rect originalRegion,dragBounds;RegionMove? regionMove;SelectionMove? selectionMove;Rect? boxBeforeMove;bool movingContents;GraphSpacing.DragLimit[] dragLimits=[];Vector previousDrag;
@@ -85,7 +85,7 @@ public sealed class GraphSurface : FrameworkElement
     CancellationTokenSource? layoutCancellation;long layoutRevision;
     bool regionGeometryDirty=true;List<GraphRegionColors.Patch> intersectionPatches=[];
     internal (double Zoom,Point Offset)? DetailReturnView {get=>detailView;set=>detailView=value;}
-    sealed record EdgePath(Relation Edge,string From,string To,StreamGeometry Geometry,Point[] Samples,Point Start,Point Control,Point End,Rect Bounds,double VisibleLength);
+    sealed record EdgePath(Relation Edge,string From,string To,StreamGeometry Geometry,Point[] Samples,Point Start,Point Control,Point End,Rect Bounds,double VisibleLength,double StartRadius,double EndRadius);
     public GraphSurface()
     {
         Focusable=true;ClipToBounds=true;FocusVisualStyle=null;InputMethod.SetIsInputMethodEnabled(this,false);
@@ -104,11 +104,11 @@ public sealed class GraphSurface : FrameworkElement
         index=document.Nodes.ToDictionary(n=>n.Id);var exposed=document.Descendants(document.Visible(scope).Select(n=>n.Id));
         visible=document.Nodes.Where(n=>exposed.Contains(n.Id)).ToList();regions=document.Regions.Where(r=>r.Parent==scope||r.Parent!=null&&exposed.Contains(r.Parent)).ToList();
         if(boardRegion!=null){var board=regions.FirstOrDefault(r=>r.Id==boardRegion);if(board==null)boardRegion=null;else{exposed=document.Descendants(GraphBoard.Members(document,board).Select(n=>n.Id));visible=document.Nodes.Where(n=>exposed.Contains(n.Id)).ToList();var inner=GraphBoard.InnerRegions(document,board).Select(r=>r.Id).ToHashSet();regions=document.Regions.Where(r=>inner.Contains(r.Id)||r.Parent!=null&&exposed.Contains(r.Parent)).ToList();}}
-        var visibleIds=visible.Select(n=>n.Id).ToHashSet();if(hoverId!=null&&!visibleIds.Contains(hoverId))hoverId=null;hoverEdge=null;
+        var visibleIds=visible.Select(n=>n.Id).Concat(regions.Select(r=>r.Id)).ToHashSet();if(hoverId!=null&&!visibleIds.Contains(hoverId))hoverId=null;hoverEdge=null;
         string? Project(string id)=>visibleIds.Contains(id)?id:null;
         var edges=new List<(Relation Edge,string From,string To)>();foreach(var edge in document.Edges){var from=Project(edge.From);var to=Project(edge.To);if(from!=null&&to!=null&&from!=to&&visibleIds.Contains(from)&&visibleIds.Contains(to))edges.Add((edge,from,to));}
         projected=[];foreach(var group in edges.GroupBy(e=>string.CompareOrdinal(e.From,e.To)<0?e.From+"|"+e.To:e.To+"|"+e.From)){var list=group.ToList();for(int i=0;i<list.Count;i++)projected.Add((list[i].Edge,list[i].From,list[i].To,(i-(list.Count-1)/2d)*28));}
-        var captionIds=document.Nodes.Select(n=>n.Id).Concat(document.Edges.Select(e=>e.Id)).ToHashSet();
+        var captionIds=document.Nodes.Select(n=>n.Id).Concat(document.Edges.Select(e=>e.Id)).Concat(document.Regions.Select(r=>r.Id)).ToHashSet();
         foreach(var id in captionSlots.Keys.Where(id=>!captionIds.Contains(id)).ToArray())captionSlots.Remove(id);
         captionText.Clear();captions.Clear();geometryDirty=regionGeometryDirty=true;InvalidateVisual();
     }
@@ -184,7 +184,7 @@ public sealed class GraphSurface : FrameworkElement
         var bounds=BoardBounds??Rect.Empty;
         var boxes=visible.ToDictionary(n=>n.Id,n=>n.Kind=="circle"?GraphGroups.Bounds(document,n,zoom):GraphGroups.PointBounds(n,zoom));
         foreach(var box in boxes.Values)bounds.Union(box);
-        foreach(var region in regions)bounds.Union(RegionBounds(region));
+        foreach(var region in regions){var box=RegionBounds(region);bounds.Union(box);boxes[region.Id]=box;}
         // Include parallel relation lanes as well as their endpoints.
         foreach(var edge in projected)
         {
@@ -295,17 +295,20 @@ public sealed class GraphSurface : FrameworkElement
         foreach(var item in projected)
         {
             if(allowedEdges!=null&&!allowedEdges.Contains(item.Edge.Id))continue;
-            var from=index[item.From];var to=index[item.To];var a=ObjectCenter(from);var b=ObjectCenter(to);var vector=b-a;if(vector.Length<.001)vector=new Vector(1,0);
+            var a=EndpointCenter(item.From);var b=EndpointCenter(item.To);
+            bool frameLink=document.Frame(item.From)!=null||document.Frame(item.To)!=null;
+            if(frameLink){var ca=a;var cb=b;a=EndpointAnchor(item.From,cb);b=EndpointAnchor(item.To,ca);}
+            var vector=b-a;if(vector.Length<.001)vector=new Vector(1,0);
             var normal=new Vector(-vector.Y,vector.X);normal.Normalize();if(string.CompareOrdinal(item.From,item.To)>0)normal=-normal;
-            var rA=OuterRadius(from)+2/Zoom;var rB=OuterRadius(to)+2/Zoom;
+            var rA=frameLink?0:OuterRadius(index[item.From])+2/Zoom;var rB=frameLink?0:OuterRadius(index[item.To])+2/Zoom;
             var curve=GraphCurve.Create(a,b,normal,item.Bend);var control=curve.Control;var start=curve.Start;var end=curve.End;
-            var lo=from.Kind=="circle"?curve.Anchor(false,rA):0;var hi=to.Kind=="circle"?curve.Anchor(true,rB):1;if(lo>=hi)continue;
+            var lo=!frameLink&&index[item.From].Kind=="circle"?curve.Anchor(false,rA):0;var hi=!frameLink&&index[item.To].Kind=="circle"?curve.Anchor(true,rB):1;if(lo>=hi)continue;
             var drawnStart=curve.At(lo);var drawnEnd=curve.At(hi);var drawnControl=drawnStart+((control-start)*(1-lo)+(end-control)*lo)*(hi-lo);
             var geometry=new StreamGeometry();using(var c=geometry.Open()){c.BeginFigure(drawnStart,false,false);c.QuadraticBezierTo(drawnControl,drawnEnd,true,false);}geometry.Freeze();var samples=new Point[17];for(int i=0;i<17;i++)samples[i]=curve.At(lo+(hi-lo)*i/16d);
-            var bounds=new Rect(start,end);bounds.Union(control);paths.Add(new EdgePath(item.Edge,item.From,item.To,geometry,samples,start,control,end,bounds,curve.VisibleLength(rA,rB)));
+            var bounds=new Rect(start,end);bounds.Union(control);paths.Add(new EdgePath(item.Edge,item.From,item.To,geometry,samples,start,control,end,bounds,curve.VisibleLength(rA,rB),rA,rB));
         }
     }
-    double EdgeTipSize(EdgePath edge,Proposition node)=>Math.Min(GraphStyle.ArrowSize(GraphStyle.Radius(node),Zoom),edge.VisibleLength/(edge.Edge.Direction=="both"?4.4:2.2));
+    double EdgeTipSize(EdgePath edge,string id)=>Math.Min(GraphStyle.ArrowSize(index.TryGetValue(id,out var node)?GraphStyle.Radius(node):18,Zoom),edge.VisibleLength/(edge.Edge.Direction=="both"?4.4:2.2));
     EdgePath? HitEdge(Point world)
     {
         BuildGeometry();var caption=captions.FirstOrDefault(c=>c.Placement.IsEdge&&c.Placement.Contains(ToScreen(world))).Placement;if(caption!=null)return paths.FirstOrDefault(p=>p.Edge.Id==caption.Id);
@@ -313,11 +316,27 @@ public sealed class GraphSurface : FrameworkElement
     }
     internal Dictionary<string,Point> RegionGrips()
     {
-        var grips=new Dictionary<string,Point>();foreach(var r in regions){var b=RegionBounds(r);if(b.IsEmpty)continue;var point=new Point(b.Left+Math.Min(b.Width/2,24/Zoom),b.Top);while(grips.Values.Any(p=>(p-point).Length<23/Zoom))point.X+=26/Zoom;grips[r.Id]=point;}return grips;
+        var grips=new Dictionary<string,Point>();
+        foreach(var r in regions)
+        {
+            var b=RegionBounds(r);if(b.IsEmpty)continue;
+            // Use world coordinates so grips stay attached while zooming. Overflowing an
+            // overcrowded border is worse than overlap; the overlap picker remains available.
+            var origin=new Point(b.Left+Math.Min(b.Width/2,24),b.Top);var point=origin;
+            var right=b.Right-Math.Min(8,b.Width/2);
+            for(int step=0;step<=grips.Count;step++)
+            {
+                var candidate=origin+new Vector(step*26,0);if(candidate.X>right)break;
+                if(grips.Values.All(p=>(p-candidate).Length>=23)){point=candidate;break;}
+            }
+            grips[r.Id]=point;
+        }
+        return grips;
     }
     internal Region? HitRegion(Point world)
     {
-        var grip=RegionGrips().Where(pair=>(pair.Value-world).Length<11/Zoom).OrderBy(pair=>(pair.Value-world).Length).FirstOrDefault();if(grip.Key!=null)return regions.First(r=>r.Id==grip.Key);
+        var title=captions.FirstOrDefault(c=>!c.Placement.IsEdge&&document.Frame(c.Placement.Id)!=null&&c.Placement.Contains(ToScreen(world))).Placement;if(title!=null)return document.Frame(title.Id);
+        var grip=RegionGrips().Where(pair=>(pair.Value-world).Length<11).OrderBy(pair=>(pair.Value-world).Length).FirstOrDefault();if(grip.Key!=null)return regions.First(r=>r.Id==grip.Key);
         double Distance(Region r){var b=RegionBounds(r);return new[]{GraphStyle.Distance(world,b.TopLeft,b.TopRight),GraphStyle.Distance(world,b.TopRight,b.BottomRight),GraphStyle.Distance(world,b.BottomRight,b.BottomLeft),GraphStyle.Distance(world,b.BottomLeft,b.TopLeft)}.Min();}
         return regions.Select(r=>(Region:r,Distance:Distance(r))).Where(pair=>pair.Distance<9/Zoom).OrderBy(pair=>pair.Distance).ThenBy(pair=>pair.Region.Id==SelectedRegion?0:1).Select(pair=>pair.Region).FirstOrDefault();
     }
@@ -330,14 +349,18 @@ public sealed class GraphSurface : FrameworkElement
         foreach(var region in regions){var b=RegionBounds(region);if(!b.IsEmpty&&viewport.IntersectsWith(b))dc.DrawRectangle(Tint(RegionColor(GraphRegionColors.Base(region)),Dark?(byte)10:(byte)7),null,b);}
         if(regionGeometryDirty){intersectionPatches=GraphRegionColors.Intersections(regions);regionGeometryDirty=false;}
         foreach(var patch in intersectionPatches)if(viewport.IntersectsWith(patch.Bounds))dc.DrawRectangle(Tint(RegionColor(patch.Color),Dark?(byte)22:(byte)15),null,patch.Bounds);
-        var grips=RegionGrips();foreach(var region in regions){var b=RegionBounds(region);if(b.IsEmpty||!viewport.IntersectsWith(b))continue;var stroke=RegionColor(GraphRegionColors.Base(region));dc.DrawRoundedRectangle(null,new Pen(stroke,(SelectedRegions.Contains(region.Id)?2.6:1.7)/Zoom),b,8/Zoom,8/Zoom);var grip=grips[region.Id];dc.DrawRoundedRectangle(stroke,new Pen(background,1/Zoom),new Rect(grip.X-8/Zoom,grip.Y-3/Zoom,16/Zoom,6/Zoom),3/Zoom,3/Zoom);if(!GroupSelection&&SelectedRegion==region.Id){var handle=8/Zoom;dc.DrawRoundedRectangle(background,new Pen(stroke,1.7/Zoom),new Rect(b.Right-handle/2,b.Bottom-handle/2,handle,handle),1,1);}}
+        // Keep the active board's movement boundary visible without adding an interactive outer frame.
+        if(BoardBounds is Rect board&&viewport.IntersectsWith(board))
+            dc.DrawRoundedRectangle(null,new Pen(Tint((SolidColorBrush)regionBrush,Dark?(byte)130:(byte)155),1/Zoom),board,8/Zoom,8/Zoom);
+        var grips=RegionGrips();foreach(var region in regions){var b=RegionBounds(region);if(b.IsEmpty||!viewport.IntersectsWith(b))continue;var stroke=linkTarget==region.Id?accent:RegionColor(GraphRegionColors.Base(region));dc.DrawRoundedRectangle(null,new Pen(stroke,(SelectedRegions.Contains(region.Id)?2.6:1.7)/Zoom),b,8/Zoom,8/Zoom);var grip=grips[region.Id];var gripWidth=Math.Min(16,b.Width);dc.DrawRoundedRectangle(stroke,new Pen(background,1),new Rect(grip.X-gripWidth/2,grip.Y-3,gripWidth,6),3,3);if(!GroupSelection&&SelectedRegion==region.Id){var handle=8/Zoom;dc.DrawRoundedRectangle(background,new Pen(stroke,1.7/Zoom),new Rect(b.Right-handle/2,b.Bottom-handle/2,handle,handle),1,1);}}
+        foreach(var region in regions.Where(r=>r.Id==SelectedRegion||r.Id==hoverRegion||r.Id==linkTarget))if(!GroupSelection&&!lasso){var b=RegionBounds(region);var port=RegionPort(region);dc.DrawLine(new Pen(accent,1.8/Zoom),new Point(b.Right,port.Y),port);dc.DrawEllipse(background,new Pen(accent,2/Zoom),port,5/Zoom,5/Zoom);}
         var normalPen=new Pen(edgeBrush,GraphStyle.EdgeWidth(Zoom)){StartLineCap=PenLineCap.Round,EndLineCap=PenLineCap.Round};normalPen.Freeze();var activePen=new Pen(accent,GraphStyle.EdgeWidth(Zoom,true)){StartLineCap=PenLineCap.Round,EndLineCap=PenLineCap.Round};activePen.Freeze();
         foreach(var group in visible.Where(n=>n.Kind=="circle").OrderByDescending(n=>OuterRadius(n)))
         {
             var box=ObjectBounds(group);if(!viewport.IntersectsWith(box))continue;var center=ObjectCenter(group);var radius=OuterRadius(group);var active=Selected.Contains(group.Id)||hoverId==group.Id||linkTarget==group.Id;
             var stroke=group.MarkColor!=null?GraphStyle.Brush(GraphMarkColors.Display(group.MarkColor,Dark)):active?accent:GraphStyle.Brush(GraphStyle.NodeColor(group.Color,Dark));
             dc.DrawEllipse(null,new Pen(stroke,(active?3:group.MarkColor!=null?2.5:1.6)/Zoom),center,radius,radius);
-            var grip=center-new Vector(0,radius);dc.DrawRoundedRectangle(stroke,new Pen(background,1/Zoom),new Rect(grip.X-7/Zoom,grip.Y-2.5/Zoom,14/Zoom,5/Zoom),2.5/Zoom,2.5/Zoom);
+            var grip=center-new Vector(0,radius);dc.DrawRoundedRectangle(stroke,new Pen(background,1),new Rect(grip.X-7,grip.Y-2.5,14,5),2.5,2.5);
             if(active&&!lasso&&!GroupSelection&&Selected.Count<=1){var port=Port(group);dc.DrawLine(new Pen(accent,1.8/Zoom),center+new Vector(radius,0),port);dc.DrawEllipse(background,new Pen(accent,2/Zoom),port,5/Zoom,5/Zoom);}
         }
         foreach(var edge in paths)
@@ -346,9 +369,10 @@ public sealed class GraphSurface : FrameworkElement
             bool active=SelectedEdge==edge.Edge.Id||hoverEdge==edge.Edge.Id;
             var brush=edge.Edge.MarkColor is string mark?GraphStyle.Brush(GraphMarkColors.Display(mark,Dark)):active?accent:edgeBrush;
             var pen=edge.Edge.MarkColor!=null?new Pen(brush,GraphStyle.EdgeWidth(Zoom,active)+.7/Zoom){StartLineCap=PenLineCap.Round,EndLineCap=PenLineCap.Round}:active?activePen:normalPen;
+            if(GraphFullText.IsReference(edge.Edge)){pen=pen.Clone();pen.DashStyle=DashStyles.Dash;}
             dc.DrawGeometry(null,pen,edge.Geometry);
-            var from=index[edge.From];var to=index[edge.To];var start=ArrowAnchor(edge,false,OuterRadius(from)+2/Zoom);var end=ArrowAnchor(edge,true,OuterRadius(to)+2/Zoom);
-            var startSize=EdgeTipSize(edge,from);var endSize=EdgeTipSize(edge,to);
+            var start=ArrowAnchor(edge,false,edge.StartRadius);var end=ArrowAnchor(edge,true,edge.EndRadius);
+            var startSize=EdgeTipSize(edge,edge.From);var endSize=EdgeTipSize(edge,edge.To);
             if(start.T>=end.T)continue;
             if(edge.Edge.Direction!="reverse"&&endSize*Zoom>=2)GraphStyle.DrawTip(dc,edge.Edge.Label,end.Tip,end.Tangent,brush,endSize,Math.Min(1.9/Zoom,endSize*.3),background);
             if(edge.Edge.Direction!="forward"&&startSize*Zoom>=2)GraphStyle.DrawTip(dc,edge.Edge.Label,start.Tip,start.Tangent,brush,startSize,Math.Min(1.9/Zoom,startSize*.3),background);
@@ -363,7 +387,7 @@ public sealed class GraphSurface : FrameworkElement
             if(selected||hovered){var ring=outer+(selected?4:2.5)/Zoom;dc.DrawEllipse(null,new Pen(accent,(selected?2.2:1.3)/Zoom),center,ring,ring);}
             if((selected||hovered)&&!lasso&&!GroupSelection&&Selected.Count<=1){var port=Port(node);dc.DrawLine(new Pen(accent,1.8/Zoom),new Point(center.X+outer,center.Y),port);dc.DrawEllipse(background,new Pen(accent,2/Zoom),port,5/Zoom,5/Zoom);}
         }
-        if(linkDragging&&LinkStart!=null&&index.TryGetValue(LinkStart,out var source)){var target=linkTarget!=null?index.GetValueOrDefault(linkTarget):null;var end=target!=null?Anchor(target,ObjectCenter(source)):linkEnd;var start=Anchor(source,target!=null?ObjectCenter(target):end);dc.DrawLine(new Pen(accent,1.8/Zoom){DashStyle=DashStyles.Dash},start,end);dc.DrawEllipse(accent,null,end,4/Zoom,4/Zoom);}
+        if((linkDragging||LinkMode)&&LinkStart!=null&&document.HasEndpoint(LinkStart)){var end=linkTarget!=null?EndpointAnchor(linkTarget,EndpointCenter(LinkStart)):linkEnd;var start=EndpointAnchor(LinkStart,linkTarget!=null?EndpointCenter(linkTarget):end);dc.DrawLine(new Pen(accent,1.8/Zoom){DashStyle=DashStyles.Dash},start,end);dc.DrawEllipse(accent,null,end,4/Zoom,4/Zoom);}
         if(GroupSelection&&!lasso){var envelope=SelectionEnvelope();if(!envelope.IsEmpty)dc.DrawRectangle(null,new Pen(accent,1/Zoom){DashStyle=DashStyles.Dash},envelope);}
         if(selectionRect is Rect rect){dc.PushOpacity(.1);dc.DrawRectangle(accent,null,rect);dc.Pop();dc.DrawRectangle(null,new Pen(accent,1/Zoom),rect);}
         dc.Pop();dc.Pop();
@@ -384,8 +408,8 @@ public sealed class GraphSurface : FrameworkElement
             for(int i=1;i<edge.Samples.Length;i++)layout.AddLine(ToScreen(edge.Samples[i-1]),ToScreen(edge.Samples[i]));
             void Head(bool atEnd)
             {
-                var node=index[atEnd?edge.To:edge.From];var head=ArrowAnchor(edge,atEnd,OuterRadius(node)+2/Zoom);var direction=head.Tangent;if(direction.Length<.001)return;direction.Normalize();
-                var tip=ToScreen(head.Tip);var size=EdgeTipSize(edge,node)*Zoom;if(size<2)return;
+                var id=atEnd?edge.To:edge.From;var head=ArrowAnchor(edge,atEnd,atEnd?edge.EndRadius:edge.StartRadius);var direction=head.Tangent;if(direction.Length<.001)return;direction.Normalize();
+                var tip=ToScreen(head.Tip);var size=EdgeTipSize(edge,id)*Zoom;if(size<2)return;
                 layout.AddLine(tip,tip-direction*size*1.85,size*.8+2,850);
             }
             if(edge.Edge.Direction!="reverse")Head(true);if(edge.Edge.Direction!="forward")Head(false);
@@ -398,6 +422,13 @@ public sealed class GraphSurface : FrameworkElement
         void Place(string id,IEnumerable<GraphCaptions.Candidate> candidates,FormattedText text)
         {
             var choice=layout.Choose(candidates,captionSlots.TryGetValue(id,out var slot)?slot:null,reconsider);var placement=choice.Placement;captionSlots[id]=choice.Slot;
+            if(viewport.IntersectsWith(placement.Bounds)){captions.Add((placement,text));layout.AddTitle(placement);}
+        }
+        foreach(var frame in regions)
+        {
+            if(string.IsNullOrWhiteSpace(frame.Caption))continue;
+            var text=Text(frame.Id,frame.Caption);
+            var placement=GraphCaptions.Frame(frame.Id,new Size(text.WidthIncludingTrailingWhitespace,text.Height),ToScreen(RegionBounds(frame).TopLeft),textScale);
             if(viewport.IntersectsWith(placement.Bounds)){captions.Add((placement,text));layout.AddTitle(placement);}
         }
         foreach(var node in visible)
@@ -433,7 +464,7 @@ public sealed class GraphSurface : FrameworkElement
     internal void EndSelectionMove(){selectionMove=null;dragging=false;}
     void PrepareDragSpacing(IEnumerable<string> ids)
     {
-        var moving=ids.ToHashSet();previousDrag=new Vector();dragLimits=projected.Where(e=>moving.Contains(e.From)!=moving.Contains(e.To)).Select(e=>{var a=index[moving.Contains(e.From)?e.From:e.To];var b=index[moving.Contains(e.From)?e.To:e.From];return new GraphSpacing.DragLimit(ObjectCenter(a),ObjectCenter(b),GraphStyle.MinimumNodeDistance(GraphStyle.Radius(a)+(a.Kind=="circle"?7:0),GraphStyle.Radius(b)+(b.Kind=="circle"?7:0)));}).Distinct().ToArray();
+        var moving=ids.ToHashSet();previousDrag=new Vector();dragLimits=projected.Where(e=>index.ContainsKey(e.From)&&index.ContainsKey(e.To)&&(moving.Contains(e.From)!=moving.Contains(e.To))).Select(e=>{var a=index[moving.Contains(e.From)?e.From:e.To];var b=index[moving.Contains(e.From)?e.To:e.From];return new GraphSpacing.DragLimit(ObjectCenter(a),ObjectCenter(b),GraphStyle.MinimumNodeDistance(GraphStyle.Radius(a)+(a.Kind=="circle"?7:0),GraphStyle.Radius(b)+(b.Kind=="circle"?7:0)));}).Distinct().ToArray();
     }
     internal void BeginBoxSelection(Point start,bool additive)
     {
@@ -474,8 +505,11 @@ public sealed class GraphSurface : FrameworkElement
         }
         if(e.ChangedButton!=MouseButton.Left)return;
         if(DrawingRegion){drawingBox=true;selectionRect=new Rect(world,world);CaptureMouse();e.Handled=true;return;}
-        var hit=LinkMode?ConnectionTarget(world,LinkStart):HitNode(world);var frame=HitRegion(world);var multi=(Keyboard.Modifiers&(ModifierKeys.Shift|ModifierKeys.Control))!=0;
-        if(LinkMode&&hit!=null){if(LinkStart==null){LinkStart=hit.Id;Selected=[hit.Id];ClearOthers();AnnounceSelection();}else if(LinkStart!=hit.Id){var from=LinkStart;LinkStart=null;Connect?.Invoke(from,hit.Id);}InvalidateVisual();e.Handled=true;return;}
+        var hit=HitNode(world);var frame=HitRegion(world);var multi=(Keyboard.Modifiers&(ModifierKeys.Shift|ModifierKeys.Control))!=0;
+        var linkHit=LinkMode?ConnectionEndpointTarget(world,LinkStart):null;
+        if(LinkMode&&linkHit!=null){if(LinkStart==null){LinkStart=linkHit;SelectEndpoint(linkHit);AnnounceSelection();}else if(LinkStart!=linkHit){var from=LinkStart;LinkStart=null;Connect?.Invoke(from,linkHit);}InvalidateVisual();e.Handled=true;return;}
+        var framePort=!GroupSelection?regions.FirstOrDefault(r=>(r.Id==SelectedRegion||r.Id==hoverRegion)&&(world-RegionPort(r)).Length<11/Zoom):null;
+        if(framePort!=null){SelectEndpoint(framePort.Id);LinkStart=framePort.Id;linkEnd=world;linkDragging=true;CaptureMouse();AnnounceSelection();e.Handled=true;return;}
         if(GroupSelection&&!multi&&e.ClickCount==1&&(hit!=null&&Selected.Contains(hit.Id)||frame!=null&&SelectedRegions.Contains(frame.Id)||hit==null&&frame==null&&HitSelection(world))){BeginSelectionMove();CaptureMouse();e.Handled=true;return;}
         var port=!GroupSelection&&Selected.Count<=1?visible.LastOrDefault(n=>(Selected.Contains(n.Id)||hoverId==n.Id)&&(world-Port(n)).Length<11/Zoom):null;
         if(port!=null&&(hit==null||hit.Id==port.Id&&(ObjectCenter(hit)-world).Length>OuterRadius(hit)+2/Zoom)){Selected=[port.Id];ClearOthers();LinkStart=port.Id;linkEnd=world;linkDragging=true;CaptureMouse();AnnounceSelection();e.Handled=true;return;}
@@ -497,7 +531,7 @@ public sealed class GraphSurface : FrameworkElement
         if(IsPreview)return;
         base.OnMouseMove(e);var current=e.GetPosition(this);var world=ToWorld(current);
         if(drawingBox){if((current-down).Length>3)moved=true;var rect=new Rect(ToWorld(down),world);if(BoardBounds is Rect bounds)rect.Intersect(bounds);selectionRect=rect;InvalidateVisual();}
-        else if(linkDragging){linkEnd=world;linkTarget=ConnectionTarget(world,LinkStart)?.Id;InvalidateVisual();}
+        else if(linkDragging||LinkMode){linkEnd=world;linkTarget=ConnectionEndpointTarget(world,LinkStart);InvalidateVisual();}
         else if(dragging)
         {
             if(!moved&&(current-down).Length>3){if(movingRegion!=null||selectionMove?.Count>0)BeforeChange?.Invoke();moved=true;}
@@ -523,6 +557,8 @@ public sealed class GraphSurface : FrameworkElement
         else
         {
             var hover=HitNode(world)?.Id;if(hover==null&&!GroupSelection)hover=visible.LastOrDefault(n=>(Selected.Contains(n.Id)||hoverId==n.Id)&&(world-Port(n)).Length<13/Zoom)?.Id;var edge=hover==null?HitEdge(world)?.Edge.Id:null;
+            var frameHover=HitRegion(world)?.Id??regions.FirstOrDefault(r=>(r.Id==SelectedRegion||r.Id==hoverRegion)&&(world-RegionPort(r)).Length<13/Zoom)?.Id;
+            if(frameHover!=hoverRegion){hoverRegion=frameHover;InvalidateVisual();}
             if(hover!=hoverId||edge!=hoverEdge){hoverId=hover;hoverEdge=edge;InvalidateVisual();}Cursor=DrawingRegion||LinkMode?Cursors.Cross:HitSelection(world)?Cursors.SizeAll:hover!=null||edge!=null||HitRegion(world)!=null?Cursors.Hand:Cursors.Arrow;
         }
         last=current;
@@ -535,7 +571,7 @@ public sealed class GraphSurface : FrameworkElement
         var boxCompleted=rightGesture&&lasso&&moved;var selectedBox=lasso?FinishBoxSelection(moved):null;
         Rect? created=drawingBox&&selectionRect is Rect draft&&!draft.IsEmpty&&draft.Width*Zoom>12&&draft.Height*Zoom>12?new Rect(draft.X,draft.Y,Math.Max(60,draft.Width),Math.Max(60,draft.Height)):null;
         if(drawingBox){DrawingRegion=false;drawingBox=false;}
-        if(linkDragging){var from=LinkStart;var to=ConnectionTarget(ToWorld(e.GetPosition(this)),from)?.Id;LinkStart=linkTarget=null;linkDragging=false;if(from!=null&&to!=null&&from!=to)Connect?.Invoke(from,to);}
+        if(linkDragging){var from=LinkStart;var to=ConnectionEndpointTarget(ToWorld(e.GetPosition(this)),from);LinkStart=linkTarget=null;linkDragging=false;if(from!=null&&to!=null&&from!=to)Connect?.Invoke(from,to);}
         if(context)
         {
             var world=ToWorld(e.GetPosition(this));var node=HitNode(world);var edge=HitEdge(world);var region=HitRegion(world);

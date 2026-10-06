@@ -25,9 +25,9 @@ public static class AgentLibraryTests
         JsonObject Mutation(string operation)=>new(){["operation"]=operation,["requestId"]=Guid.NewGuid().ToString(),["expectedDocument"]=Read(new{operation="snapshot"}).GetProperty("documentPath").GetString(),["expectedRevision"]=AgentProtocol.Revision(window.Graph.Document)};
         void Reject(object request,string message)
         {
-            var json=window.Graph.Document.Serialize();var current=((MainWindow.GraphEntry)window.GraphList.SelectedItem).Path;var count=Directory.GetFiles(directory,"*.papergraph").Length;bool rejected=false;
+            var json=window.Graph.Document.Serialize();var current=(window.CurrentGraph).Path;var count=Directory.GetFiles(directory,"*.papergraph").Length;bool rejected=false;
             try{Read(request);}catch{rejected=true;}
-            Check(rejected&&window.Graph.Document.Serialize()==json&&((MainWindow.GraphEntry)window.GraphList.SelectedItem).Path==current&&Directory.GetFiles(directory,"*.papergraph").Length==count,message);
+            Check(rejected&&window.Graph.Document.Serialize()==json&&(window.CurrentGraph).Path==current&&Directory.GetFiles(directory,"*.papergraph").Length==count,message);
         }
 
         window.Graph.Selected=["a"];window.SelectionChanged();window.NotesBox.Text="Pending note 中文";

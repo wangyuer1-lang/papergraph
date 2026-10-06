@@ -21,6 +21,10 @@ internal static class GraphCaptions
     {
         return new(id,false,center,0,new Rect(new Point(-text.Width/2,radius+8),text),scale);
     }
+    internal static Placement Frame(string id,Size text,Point topLeft,double scale=1)
+    {
+        return new(id,false,topLeft+new Vector(14,-8),0,new Rect(0,-text.Height,text.Width,text.Height),scale);
+    }
     internal static Placement Edge(string id,Size text,Point middle,Vector tangent,double scale=1)
     {
         if(tangent.X<0||Math.Abs(tangent.X)<.001&&tangent.Y<0)tangent=-tangent;

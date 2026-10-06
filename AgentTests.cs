@@ -25,7 +25,7 @@ public static class AgentTests
         Reject(Request(current.GetProperty("revision").GetString()!,path+".other"),"Wrong active document is rejected");
         var valid=Request(current.GetProperty("revision").GetString()!);var added=Read(valid);var after=window.Graph.Document.Serialize();
         Check(added.GetProperty("addedIds").GetArrayLength()==2&&window.Graph.Document.Nodes.Count==4&&window.Graph.Document.Edges.Count==1,"Batch creates independent propositions only");
-        Check(window.Graph.Document.Node("a")!.Note=="Unsaved live note"&&window.Graph.Document.Nodes.Skip(2).All(n=>n.Note.Length>0),"User edits and source notes survive batch insertion");
+        Check(window.Graph.Document.Node("a")!.Note=="Unsaved live note"&&window.Graph.Document.Nodes.Skip(2).All(n=>n.Note.Length==0&&n.AdditionalNotes[0].Body.Length>0),"User edits and source notes survive batch insertion");
         Check(GraphDocument.Parse(File.ReadAllText(path)).Serialize()==after,"Success acknowledges a durable save");
         Check(Read(valid).GetProperty("alreadyApplied").GetBoolean()&&window.Graph.Document.Serialize()==after,"Retry with the same requestId never duplicates nodes");
         void Action(string label)=>window.EditMenu.Items.OfType<MenuItem>().Single(m=>(string)m.Header==label).RaiseEvent(new RoutedEventArgs(MenuItem.ClickEvent));

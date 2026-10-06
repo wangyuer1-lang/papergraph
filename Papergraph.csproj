@@ -9,7 +9,7 @@
     <Product>papergraph</Product>
     <Title>papergraph</Title>
     <RootNamespace>Papergraph</RootNamespace>
-    <Version>0.12.12</Version>
+    <Version>0.14.3</Version>
     <ApplicationManifest>app.manifest</ApplicationManifest>
     <ApplicationIcon>app.ico</ApplicationIcon>
   </PropertyGroup>

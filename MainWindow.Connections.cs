@@ -50,7 +50,10 @@ public partial class MainWindow
         {
             var path=Storage.CompatiblePath(dataDir,"settings.json","\u754c\u9762.json");
             if(!File.Exists(path))return;
-            var settings=JsonNode.Parse(File.ReadAllText(path));dark=settings?["dark"]?.GetValue<bool>()??false;
+            var settings=JsonNode.Parse(File.ReadAllText(path));
+            if(settings?["collapsedCategories"] is JsonArray collapsed)foreach(var item in collapsed)if(item?.GetValue<string>() is string id)collapsedCategories.Add(id);
+            dark=settings?["dark"]?.GetValue<bool>()??false;
+            fullTextVisible=settings?["fullTextVisible"]?.GetValue<bool>()??false;
             if(Enum.TryParse<ConnectionDisplay>(settings?["connectionDisplay"]?.GetValue<string>(),out var mode)&&Enum.IsDefined(mode))Graph.ConnectionDisplay=mode;
         }
         catch { }
@@ -61,7 +64,9 @@ public partial class MainWindow
         {
             var path=Path.Combine(dataDir,"settings.json");JsonObject settings;
             try{settings=JsonNode.Parse(File.ReadAllText(path)) as JsonObject??new();}catch{settings=new();}
+            settings["collapsedCategories"]=new JsonArray(collapsedCategories.Select(id=>JsonValue.Create(id)).ToArray());
             settings["dark"]=dark;settings["connectionDisplay"]=Graph.ConnectionDisplay.ToString();
+            settings["fullTextVisible"]=fullTextVisible;
             File.WriteAllText(path,settings.ToJsonString());
         }
         catch { }

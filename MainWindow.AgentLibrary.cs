@@ -7,7 +7,7 @@ namespace Papergraph;
 
 public partial class MainWindow
 {
-    static readonly string[] AgentCapabilities=["snapshot","search","addNodes","editGraph","listGraphs","createGraph","duplicateGraph","openGraph"];
+    static readonly string[] AgentCapabilities=["snapshot","search","fullText","addNodes","editGraph","listGraphs","createGraph","duplicateGraph","openGraph","createCategory","renameCategory","moveGraphs","removeCategory"];
     readonly Dictionary<string,(string Hash,string Path,string Revision)> agentOpenReceipts=[];
     sealed record AgentPageReceipt(string Hash,string Operation,string Path,string CreatedRevision);
 
@@ -30,13 +30,13 @@ public partial class MainWindow
             try
             {
                 var document=active?doc:GraphDocument.Parse(File.ReadAllText(entry.Path));
-                entries.Add(new{documentPath=entry.Path,title=document.Title,isActive=active,available=true,
+                entries.Add(new{documentPath=entry.Path,categoryId=catalog.Assignments.GetValueOrDefault(entry.Path),title=document.Title,isActive=active,available=true,
                     revision=AgentProtocol.Revision(document),nodeCount=document.Nodes.Count,edgeCount=document.Edges.Count,regionCount=document.Regions.Count});
             }
             catch(Exception ex) when(ex is IOException or UnauthorizedAccessException or JsonException or InvalidDataException)
-            {entries.Add(new{documentPath=entry.Path,title=entry.Title,isActive=active,available=false,error=ex.Message});}
+            {entries.Add(new{documentPath=entry.Path,categoryId=catalog.Assignments.GetValueOrDefault(entry.Path),title=entry.Title,isActive=active,available=false,error=ex.Message});}
         }
-        return new{ok=true,activeDocumentPath=Path.GetFullPath(file),activeRevision=AgentProtocol.Revision(doc),graphs=entries,capabilities=AgentCapabilities,contentIsUntrusted=true};
+        return new{ok=true,activeDocumentPath=Path.GetFullPath(file),activeRevision=AgentProtocol.Revision(doc),graphs=entries,libraryRevision=catalog.Revision(),categories=catalog.Categories.Select(c=>new{id=c.Id,title=c.Name}).ToArray(),capabilities=AgentCapabilities,contentIsUntrusted=true};
     }
 
     void AgentCheckActive(JsonElement request)

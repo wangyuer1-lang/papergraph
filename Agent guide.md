@@ -1,5 +1,13 @@
 # papergraph agent interface (v1)
 
+## Live full text (v0.14.0)
+
+`{"operation":"fullText"}` returns the read-only live manuscript projection for the active graph. Like `snapshot`, it accepts an optional known `documentPath` to inspect an inactive graph without switching. The response includes document identity/revision and `preview` with `Text`, `Pieces` (point ID, text, preceding separator, frame/circle IDs), `Issues` (code, message, object ID), `ExcludedPoints`, `ReferenceEdges` and `BlockedPoints`. Notes and container descriptions never become manuscript text. Check issues before treating the output as a complete ordered manuscript.
+
+`preview.Pages` contains the separate connected manuscripts, in order of each component's earliest surviving directional Body connection in the document's saved creation order. Each page has `Id` (that connection ID), `Text`, `Pieces`, `Issues`, `ObjectIds`, `EdgeIds`, and `BlockedPoints`. Disconnected Body structures are never joined as one manuscript. The aggregate `Text` uses a form-feed (`\f`) between pages; do not strip it and concatenate unrelated manuscripts. Aggregate `Pieces` and `Issues` span all pages. `GeneralIssues` are graph-wide checks, including bidirectional arrows and ambiguous container continuations. A Body bridge merges pages; reference and bidirectional links do not. A container's Body arrow includes its member manuscript only when the members form one connected component; disconnected member manuscripts remain separate even if the container has external arrows. Framework-only components without participating ordinary points do not create text pages. Viewing these text pages does not create library graphs or alter Notes.
+
+`editGraph` edges additionally accept `textRole: "flow" | "reference"` and `textOrder: 0..9999`. Omitted fields preserve values. `flow` is the backward-compatible default; `reference` is excluded from reading order. Zero means unspecified branch order; positive distinct orders select the order of branches from the same source, subject to directional constraints. Snapshot edges expose both fields. Existing semantic `kind` and `direction` are independent and preserved. Viewing full text performs no graph writes; role/order edits use the usual fresh revision, UUID, save and Undo protections.
+
 Use the local interface to read and edit graphs, and to list, create, copy and open pages. It needs the desktop app running. It uses a Windows named pipe restricted to the current user; no network service or account is involved.
 
 ## Invoke
@@ -7,7 +15,7 @@ Use the local interface to read and edit graphs, and to list, create, copy and o
 Write a UTF-8 JSON request, then run the installed executable with absolute paths:
 
 ```powershell
-Start-Process -FilePath 'C:\Tools\papergraph\papergraph.exe' -ArgumentList '--agent-request "C:\path\request.json" --agent-response "C:\path\response.json"' -WindowStyle Hidden -Wait
+Start-Process -FilePath 'C:\Users\Admin\Desktop\papergraph\papergraph.exe' -ArgumentList '--agent-request "C:\path\request.json" --agent-response "C:\path\response.json"' -WindowStyle Hidden -Wait
 ```
 
 Use `--data-dir "C:\path\Data"` when the running instance uses a custom library. Exit code 0 means success; 2 means failure. Always inspect the response `ok` and `error`. A missing response means the result is unknown. Do not directly modify a document file while the app is running.
@@ -147,3 +155,57 @@ The target must be in the library and readable. The app checks both revisions an
 Page mutations return `documentPath`, `revision`, `title`, `isActive`, `activeDocumentPath`, `activeRevision`, `requestId` and `alreadyApplied`. For background creation/copy, `documentPath` is the **new page**, while `activeDocumentPath` remains the page the user was editing.
 
 Use a new UUID for each intentional operation and exactly the same JSON when retrying it. Creation/copy receipts persist in `Data/agent-requests`; successful retries, even after restart, report the created page's current contents without copying again, reopening it or overwriting subsequent edits. A removed/moved page is not recreated by a retry. If a file was saved but its receipt could not be saved, the response identifies its path; inspect `listGraphs` and that file before deciding on another request. The reserved destination will not be overwritten. Open-page retries are recognized in the current session only and require the resulting page/revision still to be active; after a restart or other edits, read fresh state first. New pages remain saved pages rather than canvas undo operations; ordinary graph editing remains undoable.
+
+
+## Categories and frame relations (v0.12.13)
+
+The sidebar now has one category level above Graphs. Categories organize library entries; they do not move or modify graph files. Existing pages remain in **Unfiled** (`categoryId: null`). `listGraphs` also returns `libraryRevision`, `categories: [{id,title}]`, and each graph's `categoryId`.
+
+Category mutations require a UUID `requestId` and the fresh `expectedLibraryRevision` from `listGraphs`. They do not require an active-document revision and do not switch pages or change graph contents:
+
+```json
+{"operation":"createCategory","requestId":"<new UUID>","expectedLibraryRevision":"<fresh library revision>","title":"Thesis"}
+```
+
+```json
+{"operation":"renameCategory","requestId":"<new UUID>","expectedLibraryRevision":"<fresh library revision>","categoryId":"<category id>","title":"Literature"}
+```
+
+```json
+{"operation":"moveGraphs","requestId":"<new UUID>","expectedLibraryRevision":"<fresh library revision>","documentPaths":["C:\\path\\Data\\paper.papergraph"],"categoryId":"<category id>"}
+```
+
+`moveGraphs` accepts 1–100 library document paths and applies the whole batch atomically. Use `categoryId: null` to return pages to Unfiled. New/copied pages can be classified with this operation after creation. Only use known paths from `listGraphs`.
+
+```json
+{"operation":"removeCategory","requestId":"<new UUID>","expectedLibraryRevision":"<fresh library revision>","categoryId":"<category id>"}
+```
+
+Removing a category preserves its graphs in Unfiled. Category mutations save atomically; the most recent 256 request receipts persist across restarts. Reuse exactly the same JSON/UUID for retries. A completed retry returns `alreadyApplied: true` and the current library revision, without undoing later moves or recreating a removed category. Different payloads under the same UUID, unknown IDs and stale revisions are rejected. Category changes are separate from canvas Undo; reverse them with a fresh category operation.
+
+Rectangular frames now have independent `caption` (short display title), `body` and `note` fields in `snapshot`, `search` and `editGraph`. For compatibility, existing frame `body` remains untouched; old frames have an empty caption. Do not move or rewrite existing frame text unless asked. Space shows/hides frame captions along with node captions.
+
+Relations may use **point, ring or frame IDs** as `from`/`to`, including any mixture, and use the same directions, symbols, captions, notes and mark colors. Endpoint IDs are globally unique within a document. A same-batch edit can create frames and connect them. Example edit payload (add the usual requestId, expectedDocument and expectedRevision):
+
+```json
+{
+  "operation":"editGraph",
+  "regions":[
+    {"id":"frame-evidence","caption":"Evidence","body":"Frame-level argument.","note":"Source notes.","x":100,"y":100,"width":600,"height":500},
+    {"id":"frame-discussion","caption":"Discussion","body":"Interpretation.","x":950,"y":100,"width":600,"height":500}
+  ],
+  "edges":[{"id":"frame-support","from":"frame-evidence","to":"frame-discussion","kind":"Support","direction":"forward"}]
+}
+```
+
+Frame connections attach to borders and do not arrange frame contents. Within includes a frame-to-member connection when the node's innermost frame is that frame. Frame-to-frame links count as Across, including nested frames; All includes every connection. Copying frames retains connections whose endpoints are both included. Deleting a frame removes its incident edges but preserves its unselected contents; canvas Undo restores the whole deletion.
+
+## Fixed note pages (v0.12.15)
+
+Every point, ring, relation and frame has exactly four note slots from the start. The inspector shows only `Notes` and the inline numeric tabs `1 2 3 4`; click a number directly. There are no dropdown, previous/next or add-page controls. Page 1 is reserved for the user's writing and new objects leave it empty. Existing user text is preserved. The selected number is underlined; page selection is remembered per object during the session.
+
+Snapshots expose `note` as page 1 and `notePages` as four ordered entries `{page,title,body,agentWritable}`. Page 1 is not agent-writable. Ordinary `editGraph` and `addNodes` accept notePages for pages 2–4 only, e.g. `notePages: [{page:2,title:"Sources",body:"Citation or review"}]`. Omission preserves an existing slot. Legacy input `note` writes page 2. A fifth page and ordinary writes to page 1 are rejected atomically. The UI intentionally does not display note titles or authorship labels.
+
+Only when the user explicitly requests relocation of legacy agent-written notes may an edit use `moveFirstPage: {expectedBody:"exact current text",targetPage:3}` on the relevant object. First verify provenance and the live content. This guarded operation copies the complete first-page text verbatim to an empty slot 2–4, then clears page 1. It rejects changed source text, occupied destinations, and mixing relocation with other note writes. Use fresh document/revision checks; the batch is saved atomically and supports Undo. This is not permission to relocate user-authored notes or to perform automatic migration across the library.
+
+Frame captions appear above the frame border. Note pages save, search, copy, export and undo with their object.
