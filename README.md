@@ -6,7 +6,7 @@ papergraph is a local Windows desktop tool for writing papers through propositio
 
 AI-generated prose can sound coherent while leaving assumptions, unsupported claims and weak connections difficult to locate. papergraph makes that review easier: a proposition, its supporting notes and its relationships can be examined directly, then revised as part of a larger structure.
 
-[Download for Windows](https://github.com/wangyuer1-lang/papergraph/releases/latest) · [User guide](docs/usage.md) · [Agent interface](Agent%20guide.md) · [中文介绍](README.zh-CN.md)
+[Download for Windows](https://github.com/wangyuer1-lang/papergraph/releases/latest) · [User guide](docs/usage.md) · [Agent interface](Agent%20guide.md) · [中文介绍](README.zh-CN.md) · [Sponsor](https://github.com/sponsors/wangyuer1-lang)
 
 ![Illustrated workflow: write propositions, connect an argument, inspect evidence and collaborate with an agent](docs/quickstart.svg)
 
@@ -86,6 +86,10 @@ Create a portable Windows x64 build:
 ```powershell
 dotnet publish Papergraph.csproj -c Release -r win-x64 --self-contained true -p:DebugType=None -p:DebugSymbols=false -o artifacts/publish
 ```
+
+## Support papergraph
+
+If papergraph helps you write or review a paper, consider [sponsoring my work](https://github.com/sponsors/wangyuer1-lang). Your support helps me keep maintaining the project, improving the writing workflow and documenting how to use it. Any amount is welcome. Thank you for your support!
 
 ## Contributing
 
