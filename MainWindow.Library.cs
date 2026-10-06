@@ -32,10 +32,10 @@ public partial class MainWindow
         }
         library.Insert(0,new(Path.GetFullPath(file),DisplayTitle(doc.Title)));
         try{if(File.Exists(CatalogPath))catalog=GraphLibraryCatalog.Parse(File.ReadAllText(CatalogPath));}
-        catch(Exception ex){Notify("Could not load categories; original file kept: "+ex.Message);}
+        catch(Exception ex){Notify(Localization.Text("Could not load categories; original file kept: ")+ex.Message);}
         GraphTree.ItemsSource=categoryRows;RefreshLibraryTree(true);
         NewGraphButton.Click+=(s,e)=>NewGraphInCategory((GraphTree.SelectedItem as GraphCategory)?.Id??CurrentGraph.CategoryId);
-        NewCategoryButton.Click+=(s,e)=>{var name=Ask("New category","");if(name!=null)LibraryUi("createCategory",new{title=name});};
+        NewCategoryButton.Click+=(s,e)=>{var name=Ask(Localization.Text("New category"),"");if(name!=null)LibraryUi("createCategory",new{title=name});};
         GraphTree.SelectedItemChanged+=(s,e)=>{if(!updatingLibrary&&e.NewValue is GraphEntry entry)SwitchGraph(entry.Path);};
         GraphTree.MouseDoubleClick+=(s,e)=>{if(LibraryHit(e.OriginalSource) is GraphEntry){DocumentTitleBox.Focus();DocumentTitleBox.SelectAll();e.Handled=true;}};
         GraphTree.PreviewKeyDown+=(s,e)=>
@@ -49,17 +49,17 @@ public partial class MainWindow
             var menu=Menu(GraphTree,PlacementMode.MousePoint);
             if(row is GraphCategory category)
             {
-                Item(menu,"New graph here",()=>NewGraphInCategory(category.Id));
-                if(category.Id.Length>0){Item(menu,"Rename category…",()=>RenameLibraryRow(category));Item(menu,"Remove category (keep graphs)",()=>LibraryUi("removeCategory",new{categoryId=category.Id}));}
+                LocalizedItem(menu,"New graph here",()=>NewGraphInCategory(category.Id));
+                if(category.Id.Length>0){LocalizedItem(menu,"Rename category…",()=>RenameLibraryRow(category));LocalizedItem(menu,"Remove category (keep graphs)",()=>LibraryUi("removeCategory",new{categoryId=category.Id}));}
             }
             else if(row is GraphEntry entry)
             {
-                Item(menu,"Open",()=>SwitchGraph(entry.Path));Item(menu,"Rename",()=>RenameLibraryRow(entry),"F2");
-                var move=new MenuItem{Header="Move to category"};
+                LocalizedItem(menu,"Open",()=>SwitchGraph(entry.Path));LocalizedItem(menu,"Rename",()=>RenameLibraryRow(entry),"F2");
+                var move=new MenuItem{Header=Localization.Text("Move to category")};
                 foreach(var c in categoryRows){var id=c.Id;var option=Item(move,c.Title,()=>LibraryUi("moveGraphs",new{documentPaths=new[]{entry.Path},categoryId=id.Length==0?null:id}));option.IsCheckable=true;option.IsChecked=entry.CategoryId==id;}menu.Items.Add(move);
-                Item(menu,"Save as…",()=>{SwitchGraph(entry.Path);if(SamePath(file,entry.Path))SaveCopy();});
-                Item(menu,"Show in folder",()=>{SwitchGraph(entry.Path);if(SamePath(file,entry.Path))ShowGraphFolder();});
-                Item(menu,"Delete graph",()=>DeleteGraph(entry.Path),"Del");
+                LocalizedItem(menu,"Save as…",()=>{SwitchGraph(entry.Path);if(SamePath(file,entry.Path))SaveCopy();});
+                LocalizedItem(menu,"Show in folder",()=>{SwitchGraph(entry.Path);if(SamePath(file,entry.Path))ShowGraphFolder();});
+                LocalizedItem(menu,"Delete graph",()=>DeleteGraph(entry.Path),"Del");
             }
             menu.IsOpen=true;e.Handled=true;
         };
@@ -76,13 +76,13 @@ public partial class MainWindow
     }
     void RenameLibraryRow(object? row)
     {
-        if(row is GraphCategory c&&c.Id.Length>0){var name=Ask("Rename category",c.Title);if(name!=null)LibraryUi("renameCategory",new{categoryId=c.Id,title=name});}
+        if(row is GraphCategory c&&c.Id.Length>0){var name=Ask(Localization.Text("Rename category"),c.Title);if(name!=null)LibraryUi("renameCategory",new{categoryId=c.Id,title=name});}
         else if(row is GraphEntry e){SwitchGraph(e.Path);if(SamePath(file,e.Path)){DocumentTitleBox.Focus();DocumentTitleBox.SelectAll();}}
     }
     void LibraryUi(string operation,object fields)
     {
         try{var request=JsonSerializer.SerializeToNode(fields)!.AsObject();request["operation"]=operation;request["requestId"]=Guid.NewGuid().ToString();request["expectedLibraryRevision"]=catalog.Revision();AgentManageCategories(JsonSerializer.SerializeToElement(request),operation);}
-        catch(Exception ex){Notify("Could not update categories: "+ex.Message);}
+        catch(Exception ex){Notify(Localization.Text("Could not update categories: ")+ex.Message);}
     }
     void NewGraphInCategory(string id)
     {
@@ -98,7 +98,7 @@ public partial class MainWindow
             var expanded=categoryRows.ToDictionary(c=>c.Id,c=>c.IsExpanded);
             categoryRows.Clear();
             foreach(var c in catalog.Categories)categoryRows.Add(new(c.Id,c.Name){IsExpanded=expanded.GetValueOrDefault(c.Id,!collapsedCategories.Contains(c.Id))});
-            categoryRows.Add(new("","Unfiled"){IsExpanded=expanded.GetValueOrDefault("",!collapsedCategories.Contains(""))});
+            categoryRows.Add(new("",Localization.Text("Unfiled")){IsExpanded=expanded.GetValueOrDefault("",!collapsedCategories.Contains(""))});
             foreach(var entry in library){entry.CategoryId=catalog.Assignments.GetValueOrDefault(entry.Path,"");entry.IsSelected=false;var category=categoryRows.FirstOrDefault(c=>c.Id==entry.CategoryId)??categoryRows.Last();category.Graphs.Add(entry);if(SamePath(entry.Path,file)){if(reveal)category.IsExpanded=true;entry.IsSelected=selectedCategory==null;}}
             foreach(var category in categoryRows)
             {
@@ -131,19 +131,19 @@ public partial class MainWindow
         if(SamePath(path,file))return;
         if(!SaveBeforeSwitch()){TrackCurrentGraph();return;}
         try{var loaded=GraphDocument.Parse(File.ReadAllText(path));ResetDocument(loaded,path,false);}
-        catch(Exception ex){TrackCurrentGraph();Notify("Could not open this graph: "+ex.Message);}
+        catch(Exception ex){TrackCurrentGraph();Notify(Localization.Text("Could not open this graph: ")+ex.Message);}
     }
     void ShowGraphFolder()
     {
         if(!Save())return;
         try{Process.Start(new ProcessStartInfo("explorer.exe",$"/select,\"{Path.GetFullPath(file)}\""){UseShellExecute=true});}
-        catch(Exception ex){Notify("Could not open the folder: "+ex.Message);}
+        catch(Exception ex){Notify(Localization.Text("Could not open the folder: ")+ex.Message);}
     }
     internal bool SaveGraphAs(string destination)
     {
         if(!SaveBeforeSwitch())return false;
-        try{Storage.Save(destination,doc);file=Path.GetFullPath(destination);dirty=false;revision++;WriteRecent();SaveDot.ToolTip="Saved to "+file;Notify("Saved to "+file);return true;}
-        catch(Exception ex){Notify("Could not save this graph: "+ex.Message);return false;}
+        try{Storage.Save(destination,doc);file=Path.GetFullPath(destination);dirty=false;revision++;WriteRecent();SaveDot.ToolTip=Localization.Text("Saved to ")+file;Notify(Localization.Text("Saved to ")+file);return true;}
+        catch(Exception ex){Notify(Localization.Text("Could not save this graph: ")+ex.Message);return false;}
     }
     internal bool DeleteGraph(string path,Action<string>? recycle=null)
     {
@@ -163,8 +163,8 @@ public partial class MainWindow
                 else Microsoft.VisualBasic.FileIO.FileSystem.DeleteFile(path,Microsoft.VisualBasic.FileIO.UIOption.OnlyErrorDialogs,Microsoft.VisualBasic.FileIO.RecycleOption.SendToRecycleBin,Microsoft.VisualBasic.FileIO.UICancelOption.ThrowException);
             }
             updatingLibrary=true;try{library.Remove(entry);}finally{updatingLibrary=false;}
-            TrackCurrentGraph();Notify("Graph moved to the Recycle Bin");return true;
+            TrackCurrentGraph();Notify(Localization.Text("Graph moved to the Recycle Bin"));return true;
         }
-        catch(Exception ex){TrackCurrentGraph();Notify("Could not delete this graph: "+ex.Message);return false;}
+        catch(Exception ex){TrackCurrentGraph();Notify(Localization.Text("Could not delete this graph: ")+ex.Message);return false;}
     }
 }

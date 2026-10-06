@@ -13,6 +13,9 @@
     <ApplicationManifest>app.manifest</ApplicationManifest>
     <ApplicationIcon>app.ico</ApplicationIcon>
   </PropertyGroup>
+  <ItemGroup>
+    <EmbeddedResource Include="Locales/*.json" />
+  </ItemGroup>
 </Project>
 
 

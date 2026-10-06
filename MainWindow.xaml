@@ -53,16 +53,16 @@
   <Grid.RowDefinitions><RowDefinition Height="46"/><RowDefinition Height="*"/></Grid.RowDefinitions>
   <Border BorderBrush="{DynamicResource BorderBrush}" BorderThickness="0,0,0,1" Background="{DynamicResource SurfaceBrush}" Padding="9,2"><DockPanel>
    <Menu x:Name="MainMenu" DockPanel.Dock="Left" VerticalAlignment="Center" Background="Transparent" Foreground="{DynamicResource TextBrush}" Margin="0,0,20,0">
-    <MenuItem x:Name="FileMenu" Header="_File"/><MenuItem x:Name="EditMenu" Header="_Edit"/><MenuItem x:Name="InsertMenu" Header="_Insert"/><MenuItem x:Name="ViewMenu" Header="_View"/><MenuItem x:Name="HelpMenu" Header="_Help"/>
+    <MenuItem x:Name="FileMenu" Header="{DynamicResource Loc3B6577DDEEAD9AB1}"/><MenuItem x:Name="EditMenu" Header="{DynamicResource Loc2B1AF61A3DAF2B6D}"/><MenuItem x:Name="InsertMenu" Header="{DynamicResource Loc6B1037179B992761}"/><MenuItem x:Name="ViewMenu" Header="{DynamicResource Loc194376EEE7D2EF79}"/><MenuItem x:Name="HelpMenu" Header="{DynamicResource Loc00BC9B98ED2FCB0C}"/>
    </Menu>
-   <StackPanel DockPanel.Dock="Right" Orientation="Horizontal"><Ellipse x:Name="SaveDot" Width="5" Height="5" Fill="#8C9E94" Margin="10,0,15,0" ToolTip="Saved locally"/><Button x:Name="ThemeButton" Content="☾" FontSize="21" Width="39" ToolTip="Switch theme"/><Button x:Name="NewNodeButton" Content="＋" FontSize="22" Width="39" ToolTip="New proposition · or double-click the canvas"/><Button x:Name="ConnectionButton" Content="Links: All" Width="112" Margin="4,0,0,0" ToolTip="Show all, within-frame or cross-frame connections" AutomationProperties.Name="Show connections: All"/><Button x:Name="ArrangeButton" Content="Arrange" Width="76" ToolTip="Arrange inside the selected □ or ◎; otherwise arrange each □ separately. Keeps frames fixed. Ctrl+Z to undo." AutomationProperties.Name="Arrange inside frames"/><Button x:Name="FitButton" Content="Fit all" Width="66" Margin="4,0,0,0" ToolTip="Show all objects on this board · F" AutomationProperties.Name="Fit all objects to view"/><Button x:Name="FitEditButton" Content="Fit edit" Width="72" ToolTip="Fit for editing · 10% minimum · Shift+F" AutomationProperties.Name="Fit for editing"/></StackPanel>
-   <TextBox x:Name="DocumentTitleBox" FontSize="14" Padding="2,9" MaxWidth="550" HorizontalAlignment="Left" ToolTip="Paper title"/>
+   <StackPanel DockPanel.Dock="Right" Orientation="Horizontal"><Ellipse x:Name="SaveDot" Width="5" Height="5" Fill="#8C9E94" Margin="10,0,15,0" ToolTip="{DynamicResource LocEA2C9DAA1A058A8B}"/><Button x:Name="ThemeButton" Content="☾" FontSize="21" Width="39" ToolTip="{DynamicResource LocB16624340A4B51C0}"/><Button x:Name="NewNodeButton" Content="＋" FontSize="22" Width="39" ToolTip="{DynamicResource LocF87CA91318747E90}"/><Button x:Name="ConnectionButton" Content="{DynamicResource LocA75FD6DC607EB6D5}" Width="112" Margin="4,0,0,0" ToolTip="{DynamicResource Loc213799D12F34438F}" AutomationProperties.Name="{DynamicResource Loc9A88E18BFFD3D110}"/><Button x:Name="ArrangeButton" Content="{DynamicResource LocD557A972AB065E6C}" Width="76" ToolTip="{DynamicResource Loc5819EEF5B3EF4176}" AutomationProperties.Name="{DynamicResource Loc2092EA5D2AAB8A8C}"/><Button x:Name="FitButton" Content="{DynamicResource LocD30CD78B19EB6D33}" MinWidth="66" Margin="4,0,0,0" ToolTip="{DynamicResource Loc5324A729DD1FF597}" AutomationProperties.Name="{DynamicResource LocF679D7EA8EDEC552}"/><Button x:Name="FitEditButton" Content="{DynamicResource LocE56B72A9EF1534FB}" MinWidth="72" ToolTip="{DynamicResource Loc9D7EAFCB017746CC}" AutomationProperties.Name="{DynamicResource Loc36ED8BC74A3AA32F}"/></StackPanel>
+   <TextBox x:Name="DocumentTitleBox" FontSize="14" Padding="2,9" MaxWidth="550" HorizontalAlignment="Left" ToolTip="{DynamicResource Loc71ADF54D82551584}"/>
   </DockPanel></Border>
   <DockPanel Grid.Row="1">
    <Border DockPanel.Dock="Left" Width="218" Background="{DynamicResource SurfaceBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="0,0,1,0">
     <DockPanel Margin="10,12" LastChildFill="True">
-     <DockPanel DockPanel.Dock="Top" Margin="4,0,0,10"><Button x:Name="NewGraphButton" DockPanel.Dock="Right" Content="＋" Width="32" Height="32" Padding="0" FontSize="21" ToolTip="New graph" AutomationProperties.Name="New graph"/><Button x:Name="NewCategoryButton" DockPanel.Dock="Right" Content="▣＋" Width="38" Height="32" Padding="0" FontSize="16" ToolTip="New category" AutomationProperties.Name="New category"/><TextBlock Text="Graphs" FontSize="13" Foreground="{DynamicResource MutedBrush}" VerticalAlignment="Center"/></DockPanel>
-     <TreeView x:Name="GraphTree" AllowDrop="True" Background="Transparent" BorderThickness="0" Foreground="{DynamicResource TextBrush}" ScrollViewer.HorizontalScrollBarVisibility="Disabled" AutomationProperties.Name="Graph categories">
+     <DockPanel DockPanel.Dock="Top" Margin="4,0,0,10"><Button x:Name="NewGraphButton" DockPanel.Dock="Right" Content="＋" Width="32" Height="32" Padding="0" FontSize="21" ToolTip="{DynamicResource Loc7ED8C0916CB5F578}" AutomationProperties.Name="{DynamicResource Loc7ED8C0916CB5F578}"/><Button x:Name="NewCategoryButton" DockPanel.Dock="Right" Content="▣＋" Width="38" Height="32" Padding="0" FontSize="16" ToolTip="{DynamicResource Loc1AB1E121C0DF65A8}" AutomationProperties.Name="{DynamicResource Loc1AB1E121C0DF65A8}"/><TextBlock Text="{DynamicResource Loc49DF72D3D6DFE991}" FontSize="13" Foreground="{DynamicResource MutedBrush}" VerticalAlignment="Center"/></DockPanel>
+     <TreeView x:Name="GraphTree" AllowDrop="True" Background="Transparent" BorderThickness="0" Foreground="{DynamicResource TextBrush}" ScrollViewer.HorizontalScrollBarVisibility="Disabled" AutomationProperties.Name="{DynamicResource LocD39000603B7B886C}">
       <TreeView.Resources>
        <HierarchicalDataTemplate DataType="{x:Type local:GraphCategory}" ItemsSource="{Binding Graphs}"><TextBlock Text="{Binding Title}" FontWeight="SemiBold" FontSize="13" ToolTip="{Binding Title}" TextTrimming="CharacterEllipsis" MaxWidth="150"/></HierarchicalDataTemplate>
        <DataTemplate DataType="{x:Type local:GraphEntry}"><TextBlock Text="{Binding Title}" FontSize="13" ToolTip="{Binding Title}" TextTrimming="CharacterEllipsis" MaxWidth="145"/></DataTemplate>
@@ -75,51 +75,51 @@
    <Grid.RowDefinitions><RowDefinition Height="*"/><RowDefinition x:Name="FullTextDividerRow" Height="0"/><RowDefinition x:Name="FullTextRow" Height="0"/></Grid.RowDefinitions>
    <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="320"/></Grid.ColumnDefinitions>
    <local:GraphSurface x:Name="Graph"/>
-   <Button x:Name="BackButton" Content="‹" FontSize="28" Padding="8,0" Width="36" Height="36" HorizontalAlignment="Left" VerticalAlignment="Top" Margin="18" Visibility="Collapsed" Background="{DynamicResource SurfaceBrush}" ToolTip="Back · Esc"/>
+   <Button x:Name="BackButton" Content="‹" FontSize="28" Padding="8,0" Width="36" Height="36" HorizontalAlignment="Left" VerticalAlignment="Top" Margin="18" Visibility="Collapsed" Background="{DynamicResource SurfaceBrush}" ToolTip="{DynamicResource Loc7A7CE942AA9C84F5}"/>
    <Border x:Name="MultiBar" Visibility="Collapsed" HorizontalAlignment="Center" VerticalAlignment="Bottom" Margin="16,0,16,22" Background="{DynamicResource SurfaceBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="10" Padding="5"><StackPanel Orientation="Horizontal">
-    <Button x:Name="RegionButton" ToolTip="Create □" AutomationProperties.Name="Create rectangular group" Width="48" Height="36"><local:ObjectGlyph Kind="frame" Stroke="{Binding Foreground,RelativeSource={RelativeSource AncestorType=Button}}"/></Button>
-    <Button x:Name="CircleButton" ToolTip="Create ◎ · Ctrl+G" AutomationProperties.Name="Group connected points" Width="48" Height="36"><local:ObjectGlyph Kind="circle" Stroke="{Binding Foreground,RelativeSource={RelativeSource AncestorType=Button}}"/></Button>
-    <Button x:Name="DeleteButton" Content="Delete" ToolTip="Delete selection" Width="72" Height="36"/>
+    <Button x:Name="RegionButton" ToolTip="{DynamicResource Loc34F63C2E3934F61C}" AutomationProperties.Name="{DynamicResource LocFAE135A7BE29043A}" Width="48" Height="36"><local:ObjectGlyph Kind="frame" Stroke="{Binding Foreground,RelativeSource={RelativeSource AncestorType=Button}}"/></Button>
+    <Button x:Name="CircleButton" ToolTip="{DynamicResource Loc0A89FE38D5F555EA}" AutomationProperties.Name="{DynamicResource Loc6A03410E41B0D6A1}" Width="48" Height="36"><local:ObjectGlyph Kind="circle" Stroke="{Binding Foreground,RelativeSource={RelativeSource AncestorType=Button}}"/></Button>
+    <Button x:Name="DeleteButton" Content="{DynamicResource LocE2D0A54968EAD24E}" ToolTip="{DynamicResource LocBA80B318C95BAC56}" Width="72" Height="36"/>
    </StackPanel></Border>
    <Border x:Name="CardPanel" Grid.Column="1" Grid.RowSpan="3" Background="{DynamicResource SurfaceBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1,0,0,0">
     <Grid x:Name="EditorLayout" Margin="21,14,18,20"><Grid.RowDefinitions><RowDefinition Height="40"/><RowDefinition Height="2*"/><RowDefinition Height="*"/></Grid.RowDefinitions>
      <DockPanel>
-      <Button x:Name="MoreButton" Content="···" FontSize="20" DockPanel.Dock="Right" Width="34" ToolTip="More"/>
-      <Button x:Name="LinkButton" Content="↗" FontSize="22" DockPanel.Dock="Right" Width="34" ToolTip="Connect to a point, ring or frame · or drag the small connection handle"/>
-      <Button x:Name="ColorButton" HorizontalAlignment="Left" ToolTip="Mark color · highlight for review" AutomationProperties.Name="Mark color" Padding="5,8"><local:ObjectGlyph x:Name="NodeColorDot" Kind="point" Width="20" Height="20"/></Button>
+      <Button x:Name="MoreButton" Content="···" FontSize="20" DockPanel.Dock="Right" Width="34" ToolTip="{DynamicResource LocD47D7CB0E4F8FD2B}"/>
+      <Button x:Name="LinkButton" Content="↗" FontSize="22" DockPanel.Dock="Right" Width="34" ToolTip="{DynamicResource Loc80D8B8F31AA5A7EC}"/>
+      <Button x:Name="ColorButton" HorizontalAlignment="Left" ToolTip="{DynamicResource Loc95CAFDA7153C21F5}" AutomationProperties.Name="{DynamicResource Loc29C8A282207691BF}" Padding="5,8"><local:ObjectGlyph x:Name="NodeColorDot" Kind="point" Width="20" Height="20"/></Button>
       <local:ObjectGlyph x:Name="EditorSymbol" Kind="frame" Visibility="Collapsed" Stroke="{DynamicResource MutedBrush}" Width="20" Height="20" Margin="5,0,0,0" VerticalAlignment="Center"/>
       <TextBlock x:Name="EditorHeading" Foreground="{DynamicResource MutedBrush}" FontSize="12" VerticalAlignment="Center" Margin="7,0,0,0"/>
      </DockPanel>
-     <TextBlock x:Name="EmptyEditor" Grid.Row="1" Text="Select an object" Foreground="{DynamicResource MutedBrush}" FontSize="13" Margin="7,24,0,0"/>
+     <TextBlock x:Name="EmptyEditor" Grid.Row="1" Text="{DynamicResource Loc16B8B33CAB514AA9}" Foreground="{DynamicResource MutedBrush}" FontSize="13" Margin="7,24,0,0"/>
      <Grid Grid.Row="1"><Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="*"/></Grid.RowDefinitions>
       <Border x:Name="CaptionPanel" Visibility="Collapsed" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="0,0,0,1" Margin="0,6,0,3" Padding="0,0,0,5">
        <Grid>
-        <TextBox x:Name="CaptionBox" FontSize="14" Padding="4,8" ToolTip="Short graph title · Space to show / hide" AutomationProperties.Name="Graph title"/>
-        <TextBlock Text="Title" Foreground="{DynamicResource MutedBrush}" FontSize="14" Margin="4,8" IsHitTestVisible="False"><TextBlock.Style><Style TargetType="TextBlock"><Setter Property="Visibility" Value="Collapsed"/><Style.Triggers><DataTrigger Binding="{Binding Text,ElementName=CaptionBox}" Value=""><Setter Property="Visibility" Value="Visible"/></DataTrigger></Style.Triggers></Style></TextBlock.Style></TextBlock>
+        <TextBox x:Name="CaptionBox" FontSize="14" Padding="4,8" ToolTip="{DynamicResource LocEBE3A1C393E2B1FD}" AutomationProperties.Name="{DynamicResource LocC618B3ACAF5C37B2}"/>
+        <TextBlock Text="{DynamicResource Loc7E8CD2056DA73A7F}" Foreground="{DynamicResource MutedBrush}" FontSize="14" Margin="4,8" IsHitTestVisible="False"><TextBlock.Style><Style TargetType="TextBlock"><Setter Property="Visibility" Value="Collapsed"/><Style.Triggers><DataTrigger Binding="{Binding Text,ElementName=CaptionBox}" Value=""><Setter Property="Visibility" Value="Visible"/></DataTrigger></Style.Triggers></Style></TextBlock.Style></TextBlock>
        </Grid>
       </Border>
      <Grid x:Name="NodePanel" Grid.Row="1" Margin="0,8,0,0">
-      <TextBox x:Name="PropositionBox" AcceptsReturn="True" TextWrapping="Wrap" VerticalScrollBarVisibility="Auto" FontSize="18" Padding="4,10,9,10" AutomationProperties.Name="Proposition"/>
+      <TextBox x:Name="PropositionBox" AcceptsReturn="True" TextWrapping="Wrap" VerticalScrollBarVisibility="Auto" FontSize="18" Padding="4,10,9,10" AutomationProperties.Name="{DynamicResource Loc1E868BDEA6C3D3FA}"/>
      </Grid>
      <ScrollViewer x:Name="EdgePanel" Grid.Row="1" Visibility="Collapsed" Margin="3,12,3,12" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled"><StackPanel>
-      <TextBlock Text="Text role" Foreground="{DynamicResource MutedBrush}" FontSize="12" Margin="0,0,0,5"/>
+      <TextBlock Text="{DynamicResource Loc50B6DEA1F73849E3}" Foreground="{DynamicResource MutedBrush}" FontSize="12" Margin="0,0,0,5"/>
       <UniformGrid x:Name="TextRoleChoices" Columns="2" Margin="0,0,0,8"/>
-      <DockPanel x:Name="TextOrderPanel" Margin="0,0,0,18"><TextBlock Text="Branch order" VerticalAlignment="Center" Foreground="{DynamicResource MutedBrush}" FontSize="12"/><TextBox x:Name="TextOrderBox" Width="62" HorizontalAlignment="Left" Margin="12,0,0,0" BorderThickness="1" ToolTip="Order Body branches from the same point as 1, 2, 3. Leave blank if undecided. Arrow dependencies take priority." AutomationProperties.Name="Branch order"/></DockPanel>
-      <TextBlock x:Name="EdgeLabel" FontSize="18" Margin="0,0,0,15"/><UniformGrid x:Name="DirectionChoices" Columns="3" Margin="0,0,0,15"/><UniformGrid x:Name="ArrowChoices" Columns="3"/><Button x:Name="CustomRelationButton" Content="Custom…" HorizontalAlignment="Left" FontSize="13" Margin="0,16,0,0"/>
+      <DockPanel x:Name="TextOrderPanel" Margin="0,0,0,18"><TextBlock Text="{DynamicResource Loc5A3B1FA69531400E}" VerticalAlignment="Center" Foreground="{DynamicResource MutedBrush}" FontSize="12"/><TextBox x:Name="TextOrderBox" Width="62" HorizontalAlignment="Left" Margin="12,0,0,0" BorderThickness="1" ToolTip="{DynamicResource Loc72EE1F18F0F8779E}" AutomationProperties.Name="{DynamicResource Loc5A3B1FA69531400E}"/></DockPanel>
+      <TextBlock x:Name="EdgeLabel" FontSize="18" Margin="0,0,0,15"/><UniformGrid x:Name="DirectionChoices" Columns="3" Margin="0,0,0,15"/><UniformGrid x:Name="ArrowChoices" Columns="3"/><Button x:Name="CustomRelationButton" Content="{DynamicResource LocC4E69D543A4475D6}" HorizontalAlignment="Left" FontSize="13" Margin="0,16,0,0"/>
      </StackPanel></ScrollViewer>
      </Grid>
       <Border x:Name="NotesPanel" Grid.Row="2" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="0,1,0,0">
        <DockPanel LastChildFill="True">
         <DockPanel DockPanel.Dock="Top" Margin="4,8,4,5" LastChildFill="False">
-         <TextBlock Text="Notes" DockPanel.Dock="Left" VerticalAlignment="Center" FontSize="12" Foreground="{DynamicResource MutedBrush}"/>
+         <TextBlock Text="{DynamicResource Loc8A7525B1492FB848}" DockPanel.Dock="Left" VerticalAlignment="Center" FontSize="12" Foreground="{DynamicResource MutedBrush}"/>
          <StackPanel x:Name="NotePageTabs" DockPanel.Dock="Right" Orientation="Horizontal">
-          <RadioButton x:Name="NotePage1" GroupName="NotePages" Tag="0" Content="1" Style="{StaticResource NotePageTab}" AutomationProperties.Name="Note 1"/>
-          <RadioButton x:Name="NotePage2" GroupName="NotePages" Tag="1" Content="2" Style="{StaticResource NotePageTab}" AutomationProperties.Name="Note 2"/>
-          <RadioButton x:Name="NotePage3" GroupName="NotePages" Tag="2" Content="3" Style="{StaticResource NotePageTab}" AutomationProperties.Name="Note 3"/>
-          <RadioButton x:Name="NotePage4" GroupName="NotePages" Tag="3" Content="4" Style="{StaticResource NotePageTab}" AutomationProperties.Name="Note 4"/>
+          <RadioButton x:Name="NotePage1" GroupName="NotePages" Tag="0" Content="1" Style="{StaticResource NotePageTab}" AutomationProperties.Name="{DynamicResource Loc8D28DE495F01EFF9}"/>
+          <RadioButton x:Name="NotePage2" GroupName="NotePages" Tag="1" Content="2" Style="{StaticResource NotePageTab}" AutomationProperties.Name="{DynamicResource LocCE1C37912A4BBA62}"/>
+          <RadioButton x:Name="NotePage3" GroupName="NotePages" Tag="2" Content="3" Style="{StaticResource NotePageTab}" AutomationProperties.Name="{DynamicResource LocE476F0868AFC360C}"/>
+          <RadioButton x:Name="NotePage4" GroupName="NotePages" Tag="3" Content="4" Style="{StaticResource NotePageTab}" AutomationProperties.Name="{DynamicResource Loc913B3282171E99EF}"/>
          </StackPanel>
         </DockPanel>
-        <TextBox x:Name="NotesBox" AcceptsReturn="True" TextWrapping="Wrap" VerticalScrollBarVisibility="Auto" FontSize="14" Padding="4,6,9,6" AutomationProperties.Name="Notes"/>
+        <TextBox x:Name="NotesBox" AcceptsReturn="True" TextWrapping="Wrap" VerticalScrollBarVisibility="Auto" FontSize="14" Padding="4,6,9,6" AutomationProperties.Name="{DynamicResource Loc8A7525B1492FB848}"/>
        </DockPanel>
       </Border>
     </Grid>
@@ -128,18 +128,18 @@
    <Border x:Name="FullTextPanel" Grid.Row="2" Visibility="Collapsed" Background="{DynamicResource SurfaceBrush}" Padding="18,8,12,10">
     <Grid><Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="*"/></Grid.RowDefinitions>
      <DockPanel Margin="4,0,0,4">
-      <Button x:Name="CopyFullTextButton" DockPanel.Dock="Right" Content="Copy" ToolTip="Copy this page without checks, titles or Notes" AutomationProperties.Name="Copy full text page"/>
+      <Button x:Name="CopyFullTextButton" DockPanel.Dock="Right" Content="{DynamicResource LocE21F935F11D7E966}" ToolTip="{DynamicResource LocDD63B648F25793EA}" AutomationProperties.Name="{DynamicResource Loc2706684FA5884CC0}"/>
       <TextBlock x:Name="FullTextCount" DockPanel.Dock="Right" Foreground="{DynamicResource TextBrush}" FontSize="12" VerticalAlignment="Center" Margin="16,0,20,0"/>
-      <TextBlock Text="Full text" VerticalAlignment="Center" Margin="0,0,16,0"/>
+      <TextBlock Text="{DynamicResource Loc9ED54584159CEEE1}" VerticalAlignment="Center" Margin="0,0,16,0"/>
       <TextBlock x:Name="FullTextStatus" Foreground="{DynamicResource MutedBrush}" FontSize="12" VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/>
      </DockPanel>
      <ScrollViewer x:Name="FullTextPagesScroller" Grid.Row="1" HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Disabled" Margin="3,0,0,4" Visibility="Collapsed"><StackPanel x:Name="FullTextPageTabs" Orientation="Horizontal"/></ScrollViewer>
-     <Expander x:Name="FullTextChecks" Grid.Row="2" Header="Checks" Foreground="{DynamicResource MutedBrush}" FontSize="12" Margin="3,0,0,7" Visibility="Collapsed"><ScrollViewer MaxHeight="115" VerticalScrollBarVisibility="Auto"><StackPanel x:Name="FullTextIssueList" Margin="14,5,0,3"/></ScrollViewer></Expander>
-     <RichTextBox x:Name="FullTextBox" Grid.Row="3" IsReadOnly="True" IsUndoEnabled="False" IsDocumentEnabled="True" BorderThickness="0" Background="Transparent" Foreground="{DynamicResource TextBrush}" FontSize="16" Padding="2,6,8,6" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" SelectionBrush="{DynamicResource AccentBrush}" SelectionOpacity="0.25" AutomationProperties.Name="Live full text"/>
-     <TextBlock x:Name="FullTextEmpty" Grid.Row="3" Text="Connect points with Body arrows to see the text here." Margin="8,14" Foreground="{DynamicResource MutedBrush}" IsHitTestVisible="False"/>
+     <Expander x:Name="FullTextChecks" Grid.Row="2" Header="{DynamicResource LocDE07D07209556C79}" Foreground="{DynamicResource MutedBrush}" FontSize="12" Margin="3,0,0,7" Visibility="Collapsed"><ScrollViewer MaxHeight="115" VerticalScrollBarVisibility="Auto"><StackPanel x:Name="FullTextIssueList" Margin="14,5,0,3"/></ScrollViewer></Expander>
+     <RichTextBox x:Name="FullTextBox" Grid.Row="3" IsReadOnly="True" IsUndoEnabled="False" IsDocumentEnabled="True" BorderThickness="0" Background="Transparent" Foreground="{DynamicResource TextBrush}" FontSize="16" Padding="2,6,8,6" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" SelectionBrush="{DynamicResource AccentBrush}" SelectionOpacity="0.25" AutomationProperties.Name="{DynamicResource Loc2E23754DEAA78B79}"/>
+     <TextBlock x:Name="FullTextEmpty" Grid.Row="3" Text="{DynamicResource Loc286AB9E4EA49412A}" Margin="8,14" Foreground="{DynamicResource MutedBrush}" IsHitTestVisible="False"/>
     </Grid>
    </Border>
-   <Border x:Name="Toast" Visibility="Collapsed" HorizontalAlignment="Center" VerticalAlignment="Bottom" Margin="24,0,24,24" Background="{DynamicResource SurfaceBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="9" Padding="14,9"><StackPanel Orientation="Horizontal"><TextBlock x:Name="ToastText" FontSize="13" VerticalAlignment="Center" TextWrapping="Wrap" MaxWidth="520"/><Button x:Name="ToastUndo" Content="Undo" Visibility="Collapsed" Foreground="{DynamicResource AccentBrush}" Padding="12,0,0,0"/></StackPanel></Border>
+   <Border x:Name="Toast" Visibility="Collapsed" HorizontalAlignment="Center" VerticalAlignment="Bottom" Margin="24,0,24,24" Background="{DynamicResource SurfaceBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="9" Padding="14,9"><StackPanel Orientation="Horizontal"><TextBlock x:Name="ToastText" FontSize="13" VerticalAlignment="Center" TextWrapping="Wrap" MaxWidth="520"/><Button x:Name="ToastUndo" Content="{DynamicResource LocA8283ADE31856F71}" Visibility="Collapsed" Foreground="{DynamicResource AccentBrush}" Padding="12,0,0,0"/></StackPanel></Border>
   </Grid>
   </DockPanel>
  </Grid>

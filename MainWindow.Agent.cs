@@ -23,10 +23,10 @@ public partial class MainWindow
             }
             var next=AgentGraphEdit.Prepare(doc,file,request);
             Graph.CancelLayout();Storage.Save(file,next);Remember();doc=next;revision++;dirty=false;saveTimer.Stop();editorId=null;RefreshAll();WriteRecent();
-            SaveDot.Fill=GraphStyle.Brush(dark?"#A6BCAF":"#789989");SaveDot.ToolTip="Saved to "+file;
+            SaveDot.Fill=GraphStyle.Brush(dark?"#A6BCAF":"#789989");SaveDot.ToolTip=Localization.Text("Saved to ")+file;
             var result=new{ok=true,documentPath=Path.GetFullPath(file),revision=AgentProtocol.Revision(doc),requestId};
             if(agentEditReceipts.Count>=256)agentEditReceipts.Remove(agentEditReceipts.Keys.First());
-            agentEditReceipts[requestId]=(raw,result.revision,result);Notify("Graph updated · Ctrl+Z to undo",true);return result;
+            agentEditReceipts[requestId]=(raw,result.revision,result);Notify(Localization.Text("Graph updated · Ctrl+Z to undo"),true);return result;
         }
         if(operation=="addNodes")
         {
@@ -36,7 +36,7 @@ public partial class MainWindow
             {
                 // Persist first: a failed save leaves the live graph and undo history untouched.
                 Storage.Save(file,result.Document);Remember();doc=result.Document;revision++;dirty=false;saveTimer.Stop();RefreshAll();
-                SaveDot.Fill=GraphStyle.Brush(dark?"#A6BCAF":"#789989");SaveDot.ToolTip="Saved to "+file;WriteRecent();
+                SaveDot.Fill=GraphStyle.Brush(dark?"#A6BCAF":"#789989");SaveDot.ToolTip=Localization.Text("Saved to ")+file;WriteRecent();
                 Notify($"Added {result.Ids.Length} propositions · no connections",true);
             }
             return new{ok=true,documentPath=Path.GetFullPath(file),revision=AgentProtocol.Revision(doc),addedIds=result.Ids,alreadyApplied=result.AlreadyApplied,edgesAdded=0};
