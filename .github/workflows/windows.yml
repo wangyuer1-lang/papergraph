@@ -1,5 +1,8 @@
 name: Windows build and self-tests
-on: [push, pull_request]
+on:
+  push:
+  pull_request:
+  workflow_call:
 permissions:
   contents: read
 jobs:
@@ -20,3 +23,17 @@ jobs:
             throw 'Self-tests failed'
           }
           Get-Content ./artifacts/build/test-results.txt
+      - name: Package Windows preview
+        shell: pwsh
+        run: |
+          [xml]$project = Get-Content Papergraph.csproj
+          $version = $project.Project.PropertyGroup.Version
+          dotnet publish Papergraph.csproj -c Release -r win-x64 --self-contained true -p:DebugType=None -p:DebugSymbols=false -o artifacts/publish
+          if ($LASTEXITCODE -ne 0) { throw 'Windows publish failed' }
+          Copy-Item LICENSE artifacts/publish/LICENSE
+          Compress-Archive -Path artifacts/publish/* -DestinationPath "artifacts/Papergraph-$version-windows-x64.zip"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Papergraph-Windows-preview
+          path: artifacts/*.zip
+          if-no-files-found: error

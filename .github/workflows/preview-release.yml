@@ -1,0 +1,59 @@
+name: Publish desktop preview
+on:
+  push:
+    branches: [main]
+    paths:
+      - Mac/Papergraph.Mac.csproj
+      - Papergraph.csproj
+      - .github/workflows/preview-release.yml
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: desktop-preview-release
+  cancel-in-progress: false
+jobs:
+  macos:
+    uses: ./.github/workflows/macos.yml
+  windows:
+    uses: ./.github/workflows/windows.yml
+  publish:
+    needs: [macos, windows]
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: Papergraph-*-preview
+          path: release-assets
+          merge-multiple: true
+      - name: Publish the tested preview
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          version=$(python3 -c 'import xml.etree.ElementTree as E; print(E.parse("Mac/Papergraph.Mac.csproj").findtext("PropertyGroup/Version"))')
+          windows_version=$(python3 -c 'import xml.etree.ElementTree as E; print(E.parse("Papergraph.csproj").findtext("PropertyGroup/Version"))')
+          [[ "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+-preview\.[0-9]+$ ]]
+          [[ "$windows_version" == "$version" ]]
+          for platform in macos-arm64 macos-x64 windows-x64; do
+            test -s "release-assets/Papergraph-$version-$platform.zip"
+          done
+          test "$(find release-assets -maxdepth 1 -name '*.zip' | wc -l)" -eq 3
+          (cd release-assets && sha256sum *.zip > SHA256SUMS.txt)
+          tag="v$version"
+          notes="docs/releases/$tag.md"
+          test -f "$notes"
+          # Do not replace an existing published release or its tag.
+          if gh release view "$tag" >/dev/null 2>&1; then
+            echo "Release $tag already exists; inspect it before rerunning."
+            exit 1
+          fi
+          gh release create "$tag" release-assets/*.zip release-assets/SHA256SUMS.txt \
+            --target "$GITHUB_SHA" --title "papergraph $version — macOS preview" \
+            --notes-file "$notes" --prerelease --draft --latest=false
+          gh release edit "$tag" --draft=false --prerelease --latest=false

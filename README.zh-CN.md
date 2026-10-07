@@ -2,7 +2,7 @@
 
 **用图关系写论文，让人与 Agent 围绕可检查的内容共同写作。**
 
-papergraph 是一款本地 Windows 桌面工具。观点、判断和待展开的论述是点，论证关系是边，区域和圆环用来组织论文的不同部分。作者可以逐项检查命题、记录证据、说明连接理由，并在整体结构与局部细节之间切换。
+papergraph 是一款本地桌面工具，支持 Windows，并提供 Mac 预览版。观点、判断和待展开的论述是点，论证关系是边，区域和圆环用来组织论文的不同部分。作者可以逐项检查命题、记录证据、说明连接理由，并在整体结构与局部细节之间切换。
 
 它主要面向 AI 写作后的审阅问题：流畅的文字可能掩盖未经支持的判断、隐含前提和薄弱的论证关系。将这些内容拆成可定位、可讨论、可修改的对象，有助于人与 Agent 一起推进写作。
 
@@ -26,7 +26,15 @@ papergraph 是一款本地 Windows 桌面工具。观点、判断和待展开的
 
 目前没有内置大模型、自动事实核验或 Zotero 检索。更完整的来源追踪和变更审阅是后续方向。
 
-## 使用
+## Mac 预览版
+
+[下载 0.15.0-preview.6](https://github.com/wangyuer1-lang/papergraph/releases/tag/v0.15.0-preview.6)：M 系列芯片请选择 `macos-arm64`，Intel 芯片请选择 `macos-x64`，要求 macOS 14 或以上。解压后把 `Papergraph.app` 拖入“应用程序”，无需另外安装 .NET。同一发布页也提供图标已统一的 Windows x64 预览版。
+
+Mac 版可打开现有 `.papergraph`、`.yujian` 文件，支持分类、四页 Notes、实时全文和本地 Agent 接口。单指拖动空白处框选、双指滑动平移，常用操作可通过画布上的按钮完成；快捷键使用 Command。默认图谱目录为 `~/Library/Application Support/Papergraph`。
+
+此为预览版，Mac 程序使用 ad-hoc 签名，尚未进行 Apple 公证；Intel 包尚未进行实机验证。安装及操作见 [Mac 使用说明](docs/macos.md)。
+
+## Windows 正式版使用
 
 从 [Releases](https://github.com/wangyuer1-lang/papergraph/releases/latest) 下载 Windows x64 压缩包，解压到可写文件夹后运行 `papergraph.exe`，当前应用版本为 0.14.3，无需另外安装 .NET。
 

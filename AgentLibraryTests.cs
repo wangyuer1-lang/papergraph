@@ -85,6 +85,6 @@ public static class AgentLibraryTests
         Check(Read(create).GetProperty("title").GetString()=="Renamed later","Retry reports current page state without restoring old content");
         File.Move(createdPath,createdPath+".moved");Reject(create,"Retry after a removed page does not recreate it");
         window.Close();
-        File.AppendAllText(Path.Combine(AppContext.BaseDirectory,"test-results.txt"),"PASS: agent page listing, inactive read/search, safe paths, pending edits, create/copy/open, exact full graph copy, active/source/target conflicts, gesture guard, independent editing, no overwrite, retry and restart receipts.\n");
+        File.AppendAllText(TestEvidence.ResultsPath,"PASS: agent page listing, inactive read/search, safe paths, pending edits, create/copy/open, exact full graph copy, active/source/target conflicts, gesture guard, independent editing, no overwrite, retry and restart receipts.\n");
     }
 }

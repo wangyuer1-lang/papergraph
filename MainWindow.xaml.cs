@@ -93,7 +93,7 @@ public partial class MainWindow : Window
         var palette=dark?new[]{"#191C22","#232730","#E1E6ED","#9EABBC","#363E4B","#313A49","#9CC2FF"}:new[]{"#F7F8FA","#FFFFFF","#273747","#7C8997","#DFE5EC","#E9EEF5","#356FBD"};
         var keys=new[]{"CanvasBrush","SurfaceBrush","TextBrush","MutedBrush","BorderBrush","HoverBrush","AccentBrush"};for(int i=0;i<keys.Length;i++)Resources[keys[i]]=GraphStyle.Brush(palette[i]);
         Resources[SystemColors.MenuBrushKey]=Ui("SurfaceBrush");Resources[SystemColors.MenuTextBrushKey]=Ui("TextBrush");Resources[SystemColors.ControlBrushKey]=Ui("SurfaceBrush");Resources[SystemColors.ControlTextBrushKey]=Ui("TextBrush");Resources[SystemColors.HighlightBrushKey]=Ui("HoverBrush");Resources[SystemColors.HighlightTextBrushKey]=Ui("TextBrush");
-        Graph.ApplyTheme(dark);ThemeButton.Content=dark?"☀":"☾";ThemeButton.ToolTip=Localization.Text(dark?"Switch to light theme":"Switch to dark theme");NativeTitleTheme();SelectionChanged();
+        Graph.ApplyTheme(dark);ThemeButton.Content=new ThemeGlyph { Sun=dark,Ink=Ui("MutedBrush") };ThemeButton.ToolTip=Localization.Text(dark?"Switch to light theme":"Switch to dark theme");System.Windows.Automation.AutomationProperties.SetName(ThemeButton,(string)ThemeButton.ToolTip);NativeTitleTheme();SelectionChanged();
     }
     void NativeTitleTheme(){var hwnd=new WindowInteropHelper(this).Handle;if(hwnd==IntPtr.Zero)return;try{int value=dark?1:0;DwmSetWindowAttribute(hwnd,20,ref value,4);}catch{}}
     void LoadInitial()

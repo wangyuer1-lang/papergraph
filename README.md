@@ -2,11 +2,11 @@
 
 **Write papers as graphs. Inspect the parts. Collaborate with agents.**
 
-papergraph is a local Windows desktop tool for writing papers through propositions and their relationships. It makes the parts of a paper visible and individually editable, so authors can inspect claims, record evidence, examine connections and work with an AI agent on specific pieces of the argument.
+papergraph is a local desktop tool for Windows and macOS (preview) for writing papers through propositions and their relationships. It makes the parts of a paper visible and individually editable, so authors can inspect claims, record evidence, examine connections and work with an AI agent on specific pieces of the argument.
 
 AI-generated prose can sound coherent while leaving assumptions, unsupported claims and weak connections difficult to locate. papergraph makes that review easier: a proposition, its supporting notes and its relationships can be examined directly, then revised as part of a larger structure.
 
-[Download for Windows](https://github.com/wangyuer1-lang/papergraph/releases/latest) · [User guide](docs/usage.md) · [Agent interface](Agent%20guide.md) · [中文介绍](README.zh-CN.md) · [Sponsor](https://github.com/sponsors/wangyuer1-lang)
+[Windows stable](https://github.com/wangyuer1-lang/papergraph/releases/latest) · [Mac / Windows preview](https://github.com/wangyuer1-lang/papergraph/releases/tag/v0.15.0-preview.6) · [User guide](docs/usage.md) · [Agent interface](Agent%20guide.md) · [中文介绍](README.zh-CN.md) · [Sponsor](https://github.com/sponsors/wangyuer1-lang)
 
 ![Illustrated workflow: write propositions, connect an argument, inspect evidence and collaborate with an agent](docs/quickstart.svg)
 
@@ -21,7 +21,15 @@ AI-generated prose can sound coherent while leaving assumptions, unsupported cla
 
 Double-click a region or ring to focus on its internal board, then return to the overview. Light and dark themes are included.
 
-## Start writing
+## macOS preview
+
+[Download 0.15.0-preview.6](https://github.com/wangyuer1-lang/papergraph/releases/tag/v0.15.0-preview.6): choose `macos-arm64` for Apple Silicon or `macos-x64` for Intel. Requires macOS 14 or newer. Extract the ZIP and move `Papergraph.app` to Applications; no separate .NET installation is needed. The same release also includes a Windows x64 preview with the shared app and theme icons.
+
+The Mac preview supports the existing graph files, categories, Notes and local agent interface. Drag empty canvas to select, use two-finger scrolling to pan, and use the visible Select/Pan/zoom/Actions controls. Mac shortcuts use Command. The default library is `~/Library/Application Support/Papergraph`.
+
+This preview is ad-hoc signed, without Apple notarization. Intel is cross-built and has not been tested on Intel hardware. See [Mac installation, controls and limitations](docs/macos.md).
+
+## Start writing on Windows
 
 1. Download the Windows x64 ZIP from [Releases](https://github.com/wangyuer1-lang/papergraph/releases/latest), extract it into a writable folder, then open `papergraph.exe`. The current downloadable app build is **0.14.3** and includes its .NET runtime.
 2. Click **+** beside **Graphs** to create a graph, then enter its title in the top bar.
@@ -55,7 +63,7 @@ The local agent interface can read the live document (including unsaved writing,
 
 `fullText` reads manuscript pages, source point IDs and ordering checks without operating the desktop window. `snapshot`, `search` and `fullText` also support inactive library pages. Notes page 1 is reserved for the author; ordinary agent writes use pages 2–4. Categories can be created, renamed and assigned through the same interface.
 
-Writes require the expected document, revision and a stable request UUID. Each accepted batch saves before reporting success and can be undone in one step. Stale writes are rejected so an agent cannot silently overwrite newer edits. The interface uses a Windows named pipe restricted to the current user. See the [request formats and CLI examples](Agent%20guide.md).
+Writes require the expected document, revision and a stable request UUID. Each accepted batch saves before reporting success and can be undone in one step. Stale writes are rejected so an agent cannot silently overwrite newer edits. The interface uses a local named pipe restricted to the current user on Windows and macOS. See the [request formats and CLI examples](Agent%20guide.md).
 
 Agents can also use `listGraphs`, `createGraph`, `duplicateGraph` and `openGraph` to manage separate pages. `snapshot` and `search` can read another page without switching. New pages and complete copies open in the background by default, preserving the user's current view; copying retains all writing, notes, frames, rings, positions, colors and connections. Pending edits save before changing pages, and source/target revision checks prevent stale operations. Creation receipts survive restarts so retries do not create duplicate pages or overwrite later edits. Page creation and switching are separate from canvas undo.
 
@@ -65,7 +73,7 @@ The longer-term goal is collaborative writing with clearer source tracking, prop
 
 ## Local files
 
-Graphs are readable `.papergraph` JSON files. Autosave writes to `Data` beside the executable unless a different data directory or save location is chosen. Existing `.yujian` documents remain readable. A save keeps the preceding version as `.bak`; Markdown export is available. Undo history lasts for the current session.
+Graphs are readable `.papergraph` JSON files. Windows autosave writes to `Data` beside the executable; macOS uses `~/Library/Application Support/Papergraph`. A different data directory or save location can be chosen. Existing `.yujian` documents remain readable. A save keeps the preceding version as `.bak`; Markdown export is available. Undo history lasts for the current session.
 
 Keep your `Data` folder when upgrading. Release archives contain no personal graphs or library state. To use a separate library:
 
@@ -75,7 +83,7 @@ Keep your `Data` folder when upgrading. Release archives contain no personal gra
 
 ## Build and test
 
-Requires Windows and the **.NET 10 SDK** with desktop support. The application uses C# and WPF and currently targets Windows only.
+The Windows target uses C# and WPF and requires Windows with the **.NET 10 SDK** for desktop execution. The Mac target uses Avalonia and the same graph sources; see [Mac build and test instructions](docs/macos.md#run-and-build).
 
 ```powershell
 dotnet build Papergraph.csproj -c Release -o artifacts/build

@@ -231,7 +231,7 @@ public static class ModelTests
         var split=new GraphDocument{Nodes=[new(){Id="text",Title="Original proposition\nSecond line",Note="Original notes\nLast line"},new(){Id="note",Title="",Note="Notes only"},new(){Id="circle",Kind="circle",Title="Group proposition",Note="Group notes"}],Regions=[new(){Id="box",IsAbsolute=true,Title="Frame proposition",Note="Frame notes"}]};
         var splitJson=split.Serialize();Assert(GraphDocument.Parse(splitJson).Serialize()==splitJson,"Separate proposition and notes survive persistence without merging");
         var root=Path.Combine(Path.GetTempPath(),"yujian-tests-"+Guid.NewGuid().ToString("N"));Directory.CreateDirectory(root);var file=Path.Combine(root,"test.yujian");d=GraphDocument.Demo();Storage.Save(file,d);d.Title="中文保存 ✓";Storage.Save(file,d);Assert(GraphDocument.Parse(File.ReadAllText(file)).Title==d.Title,"Unicode disk persistence");Assert(GraphDocument.Parse(File.ReadAllText(file+".bak")).Title!=d.Title,"Backup preserved");Assert(d.Markdown().Contains("Relations"),"Markdown export");
-        File.WriteAllText(Path.Combine(AppContext.BaseDirectory,"test-results.txt"),"PASS: projection, connected collapse, lossless dissolve, nested scopes, deletion, cycle validation, Unicode persistence, atomic backup, Markdown export.\n");
+        File.WriteAllText(TestEvidence.ResultsPath,"PASS: projection, connected collapse, lossless dissolve, nested scopes, deletion, cycle validation, Unicode persistence, atomic backup, Markdown export.\n");
     }
 }
 
