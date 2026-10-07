@@ -9,14 +9,15 @@
     <Product>papergraph</Product>
     <Title>papergraph</Title>
     <RootNamespace>Papergraph</RootNamespace>
-    <Version>0.14.3</Version>
+    <Version>0.15.0-preview.6</Version>
     <ApplicationManifest>app.manifest</ApplicationManifest>
     <ApplicationIcon>app.ico</ApplicationIcon>
   </PropertyGroup>
   <ItemGroup>
+    <Compile Remove="Mac/**/*.cs" />
+    <None Remove="Mac/bin/**;Mac/obj/**" />
     <EmbeddedResource Include="Locales/*.json" />
   </ItemGroup>
 </Project>
-
 
 

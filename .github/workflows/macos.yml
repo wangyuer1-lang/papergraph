@@ -1,0 +1,35 @@
+name: macOS preview build and tests
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+  workflow_call:
+permissions:
+  contents: read
+jobs:
+  macos:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+      - name: Native desktop and agent regression tests
+        shell: bash
+        run: dotnet run --project Mac/Papergraph.Mac.csproj -c Release -- --self-test --data-dir "$RUNNER_TEMP/papergraph-tests"
+      - name: Build Apple Silicon and Intel app bundles
+        run: |
+          scripts/package-macos.sh arm64
+          scripts/package-macos.sh x64
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Papergraph-macOS-preview
+          path: artifacts/macos-*/*.zip
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: macOS-test-evidence
+          path: |
+            ${{ runner.temp }}/papergraph-tests/test-failure.txt
+            ${{ runner.temp }}/papergraph-tests/*.png
+            ${{ runner.temp }}/papergraph-tests/test-results.txt

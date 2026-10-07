@@ -114,6 +114,7 @@ internal interface IGraphClipboardStore
     void Write(string json);
 }
 
+#if !CROSS_PLATFORM
 internal sealed class SystemGraphClipboardStore : IGraphClipboardStore
 {
     const string DataFormat="Papergraph.GraphFragment.v1";
@@ -129,3 +130,5 @@ internal sealed class SystemGraphClipboardStore : IGraphClipboardStore
         Clipboard.SetDataObject(data,true);
     }
 }
+
+#endif

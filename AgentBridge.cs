@@ -11,7 +11,7 @@ namespace Papergraph;
 internal sealed class AgentBridge : IDisposable
 {
     readonly CancellationTokenSource stop=new();
-    internal static string PipeName(string directory)=>"papergraph-agent-"+Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(Path.GetFullPath(directory).TrimEnd(Path.DirectorySeparatorChar).ToLowerInvariant())))[..20];
+    internal static string PipeName(string directory)=>"papergraph-agent-"+Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(PathIdentity.Normalize(directory))))[..20];
     internal AgentBridge(string directory,Dispatcher dispatcher,Func<JsonElement,object> handle)
     {
         _=Task.Run(async()=>{
@@ -69,7 +69,7 @@ internal static class AgentProtocol
     internal static object Node(Proposition n)=>new{id=n.Id,caption=n.Caption,body=n.Title,note=n.Note,notePages=GraphNotes.Snapshot(n),kind=n.Kind,parentId=n.Parent,x=n.X,y=n.Y,color=n.Color,markColor=n.MarkColor};
     internal static (GraphDocument Document,string[] Ids,bool AlreadyApplied) Prepare(GraphDocument doc,string file,JsonElement request)
     {
-        if(!string.Equals(Path.GetFullPath(Required(request,"expectedDocument")),Path.GetFullPath(file),StringComparison.OrdinalIgnoreCase))throw new InvalidDataException("The active document changed. Read a fresh snapshot.");
+        if(!PathIdentity.Same(Required(request,"expectedDocument"),file))throw new InvalidDataException("The active document changed. Read a fresh snapshot.");
         var requestId=Required(request,"requestId");if(!Guid.TryParse(requestId,out var requestGuid))throw new InvalidDataException("requestId must be a UUID; reuse it when retrying.");
         var anchor=doc.Node(Required(request,"nearNodeId"))??throw new InvalidDataException("nearNodeId no longer exists.");
         var source=request.GetProperty("nodes");if(source.ValueKind!=JsonValueKind.Array||source.GetArrayLength() is <1 or >100)throw new InvalidDataException("Supply 1 to 100 nodes.");

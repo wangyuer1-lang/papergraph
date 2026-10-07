@@ -27,6 +27,6 @@ public static class SpacingTests
         }
         var longEdge=GraphCurve.Create(new Point(),new Point(200,0),new Vector(0,1),0);Check(longEdge.Control==new Point(100,0),"Spacious links remain straight");
         var watch=Stopwatch.StartNew();var dense=new GraphRelaxation(Enumerable.Range(0,220).Select(i=>new GraphRelaxation.Body(i.ToString(),new Point((i%20)*25,(i/20)*25),12,true)).ToArray(),Enumerable.Range(0,219).Select(i=>(i.ToString(),(i+1).ToString())).ToArray());dense.Complete();watch.Stop();Check(dense.Positions.All(p=>double.IsFinite(p.X)&&double.IsFinite(p.Y)),"Dense single-result layout remains finite");
-        File.AppendAllText(Path.Combine(AppContext.BaseDirectory,"test-results.txt"),"PASS: single atomic layout commit, minimum connected spacing, pinned endpoints, merged/large radii, crowded chain, fixed bounds, drag contact/sliding/no tunneling, unconstrained free nodes, straight zoom-invariant routes, bounded parallel lanes and proportional arrowheads at six zooms.\n220-node local solve: "+watch.ElapsedMilliseconds+" ms.\n");
+        File.AppendAllText(TestEvidence.ResultsPath,"PASS: single atomic layout commit, minimum connected spacing, pinned endpoints, merged/large radii, crowded chain, fixed bounds, drag contact/sliding/no tunneling, unconstrained free nodes, straight zoom-invariant routes, bounded parallel lanes and proportional arrowheads at six zooms.\n220-node local solve: "+watch.ElapsedMilliseconds+" ms.\n");
     }
 }

@@ -13,7 +13,7 @@ public partial class MainWindow
         if(operation is "createGraph" or "duplicateGraph" or "openGraph")return AgentManageGraph(request,operation);
         if(operation=="editGraph")
         {
-            if(!string.Equals(Path.GetFullPath(AgentProtocol.Required(request,"expectedDocument")),Path.GetFullPath(file),StringComparison.OrdinalIgnoreCase))throw new InvalidDataException("Active document changed. Read a fresh snapshot.");
+            if(!PathIdentity.Same(AgentProtocol.Required(request,"expectedDocument"),file))throw new InvalidDataException("Active document changed. Read a fresh snapshot.");
             if(Graph.IsInteracting||Graph.DrawingRegion||Graph.LinkMode)throw new InvalidOperationException("Finish the active graph gesture before editing.");
             var requestId=AgentProtocol.Required(request,"requestId");var raw=request.GetRawText();
             if(agentEditReceipts.TryGetValue(requestId,out var receipt))

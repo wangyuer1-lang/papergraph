@@ -35,7 +35,7 @@ public sealed class LibraryCategory
 public sealed class GraphLibraryCatalog
 {
     public List<LibraryCategory> Categories {get;set;}=[];
-    public Dictionary<string,string> Assignments {get;set;}=new(StringComparer.OrdinalIgnoreCase);
+    public Dictionary<string,string> Assignments {get;set;}=new(PathIdentity.Comparer);
     public Dictionary<string,string> Receipts {get;set;}=[];
     public string Revision()=>Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(JsonSerializer.Serialize(new{Categories,Assignments}))));
     public GraphLibraryCatalog Copy()=>Parse(JsonSerializer.Serialize(this));
@@ -46,7 +46,7 @@ public sealed class GraphLibraryCatalog
         var ids=new HashSet<string>();
         foreach(var c in value.Categories)if(c==null||string.IsNullOrWhiteSpace(c.Id)||!ids.Add(c.Id)||string.IsNullOrWhiteSpace(c.Name)||c.Name.Length>200)throw new InvalidDataException("Invalid category.");
         if(value.Assignments.Any(a=>!Path.IsPathFullyQualified(a.Key)||!ids.Contains(a.Value)))throw new InvalidDataException("Invalid graph category assignment.");
-        value.Assignments=new(value.Assignments,StringComparer.OrdinalIgnoreCase);return value;
+        value.Assignments=new(value.Assignments,PathIdentity.Comparer);return value;
     }
     public void Save(string path)
     {

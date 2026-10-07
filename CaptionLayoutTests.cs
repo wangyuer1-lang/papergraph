@@ -41,6 +41,6 @@ public static class CaptionLayoutTests
         graph.SetView(1,new Point(7,9));Check(graph.LayoutCaptions().SequenceEqual(panned),"Repeated zoom round trips preserve all title sides and edge anchors");
         graph.ShowCaptions=false;graph.LayoutCaptions();graph.ShowCaptions=true;graph.ApplyTheme(true);Check(graph.LayoutCaptions().SequenceEqual(panned),"Title toggles and theme changes do not reshuffle positions");
         Check(doc.Serialize()==snapshot,"Title placement never changes graph positions or saved content");
-        File.AppendAllText(Path.Combine(AppContext.BaseDirectory,"test-results.txt"),"PASS: title placement avoids arrow shafts and heads, nearby titles and canvas boundaries, switches edge sides, retains stable positions and hit targets, and keeps all titles visible when collisions are unavoidable.\n");
+        File.AppendAllText(TestEvidence.ResultsPath,"PASS: title placement avoids arrow shafts and heads, nearby titles and canvas boundaries, switches edge sides, retains stable positions and hit targets, and keeps all titles visible when collisions are unavoidable.\n");
     }
 }

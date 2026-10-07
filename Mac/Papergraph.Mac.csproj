@@ -1,0 +1,21 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType><TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings><Nullable>enable</Nullable>
+    <AssemblyName>papergraph</AssemblyName><RootNamespace>Papergraph</RootNamespace>
+    <!-- Shared canvas intentionally hides Control.Bounds and ContextRequested. -->
+    <NoWarn>$(NoWarn);CS0108</NoWarn>
+    <Version>0.15.0-preview.6</Version><DefineConstants>$(DefineConstants);CROSS_PLATFORM</DefineConstants>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="Avalonia.Desktop" Version="11.3.22" />
+    <PackageReference Include="Avalonia.Themes.Fluent" Version="11.3.22" />
+    <PackageReference Include="Avalonia.Fonts.Inter" Version="11.3.22" />
+    <Compile Include="../Graph*.cs" Exclude="../*Tests.cs" Link="Shared/%(Filename)%(Extension)" />
+    <Compile Include="../AgentLibraryTests.cs;../SpacingTests.cs;../CaptionLayoutTests.cs;../RingConnectionTests.cs" Link="Tests/%(Filename)%(Extension)" />
+    <Compile Include="../ThemeSymbols.cs;../TestEvidence.cs;../PathIdentity.cs;../CaptionLayout.cs;../AgentBridge.cs;../AgentGraphEdit.cs;../MainWindow.Agent*.cs;../TextStatistics.cs" Link="Shared/%(Filename)%(Extension)" />
+    <EmbeddedResource Include="../Locales/*.json" LogicalName="Papergraph.Locales.%(Filename)%(Extension)" />
+    <EmbeddedResource Include="../app.ico" LogicalName="Papergraph.ApplicationIcon.ico" />
+    <EmbeddedResource Include="Assets/Papergraph.icns" LogicalName="Papergraph.ApplicationIcon.icns" />
+  </ItemGroup>
+</Project>

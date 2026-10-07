@@ -7,7 +7,7 @@ internal static class AgentGraphEdit
 {
     internal static GraphDocument Prepare(GraphDocument current,string file,JsonElement request)
     {
-        if(!string.Equals(Path.GetFullPath(AgentProtocol.Required(request,"expectedDocument")),Path.GetFullPath(file),StringComparison.OrdinalIgnoreCase))throw new InvalidDataException("Active document changed. Read a fresh snapshot.");
+        if(!PathIdentity.Same(AgentProtocol.Required(request,"expectedDocument"),file))throw new InvalidDataException("Active document changed. Read a fresh snapshot.");
         if(AgentProtocol.Required(request,"expectedRevision")!=AgentProtocol.Revision(current))throw new InvalidDataException("Document changed. Read a fresh snapshot before editing.");
         if(!Guid.TryParse(AgentProtocol.Required(request,"requestId"),out _))throw new InvalidDataException("requestId must be a UUID.");
         var next=GraphDocument.Parse(current.Serialize());int count=0;

@@ -31,6 +31,6 @@ public static class RingConnectionTests
         Check(paths.Cast<object>().Count()==5,"All original and ring relations produce visible edge geometry");
         var restored=GraphDocument.Parse(graph.Document.Serialize());
         Check(restored.Edges.Any(e=>e.From==left.Id&&e.To==right.Id),"Saving preserves direct ring endpoints");
-        window.Close();File.AppendAllText(Path.Combine(AppContext.BaseDirectory,"test-results.txt"),"PASS: ring boundary/port connection targets at multiple zooms, independent member endpoints, point/ring and ring/ring links, rendered geometry, stable layout and saved endpoints.\n");
+        window.Close();File.AppendAllText(TestEvidence.ResultsPath,"PASS: ring boundary/port connection targets at multiple zooms, independent member endpoints, point/ring and ring/ring links, rendered geometry, stable layout and saved endpoints.\n");
     }
 }
