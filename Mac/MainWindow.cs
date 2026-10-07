@@ -185,7 +185,9 @@ public partial class MainWindow:Window
         else if(Graph.SelectedRegion!=null&&Graph.SelectionCount==1){editorId=Graph.SelectedRegion;editorKind="region";}
         else if(Graph.SelectionCount==0&&Graph.SelectedEdge!=null){editorId=Graph.SelectedEdge;editorKind="edge";}
         var item=SelectedObject();bool open=item!=null;emptyEditor.IsVisible=!open;notesPanel.IsVisible=moreButton.IsVisible=captionPanel.IsVisible=open;
-        bodyBox.IsVisible=open&&editorKind!="edge";edgePanel.IsVisible=editorKind=="edge";linkButton.IsVisible=open&&editorKind!="edge";colorButton.IsVisible=editorKind is "node" or "edge";editorSymbol.IsVisible=editorKind=="region";
+        // Hide the entire relation viewport so its empty presenter cannot
+        // intercept clicks on the proposition editor beneath it.
+        bodyBox.IsVisible=open&&editorKind!="edge";edgeScroll.IsVisible=edgePanel.IsVisible=editorKind=="edge";linkButton.IsVisible=open&&editorKind!="edge";colorButton.IsVisible=editorKind is "node" or "edge";editorSymbol.IsVisible=editorKind=="region";
         heading.Text=item is Proposition {Kind:"circle"}?"":T(editorKind switch{"node"=>"Proposition","edge"=>"Relation","region"=>"Frame",_=>""});
         {SetEditorText(captionBox,item switch{Proposition n=>n.Caption,Relation e=>e.Caption,Region r=>r.Caption,_=>""});SetEditorText(bodyBox,item switch{Proposition n=>n.Title,Region r=>r.Title,_=>""});}
         if(item is Relation edge){nodeGlyph.Kind="point";nodeGlyph.Stroke=new SolidColorBrush(GraphMarkColors.Edge(edge,dark));BuildArrowChoices(edge);}

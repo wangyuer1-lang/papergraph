@@ -1,10 +1,10 @@
 # macOS preview
 
-Papergraph 0.15.0-preview.6 adds an Avalonia desktop target in `Mac/`. It uses the existing graph model, file format, graph surface, layout algorithms, note rules and agent operations. The original Windows WPF target remains available.
+Papergraph 0.15.0-preview.7 adds an Avalonia desktop target in `Mac/`. It uses the existing graph model, file format, graph surface, layout algorithms, note rules and agent operations. The original Windows WPF target remains available.
 
 ## Download and install
 
-Download [0.15.0-preview.6](https://github.com/wangyuer1-lang/papergraph/releases/tag/v0.15.0-preview.6). Use `macos-arm64` for Apple Silicon or `macos-x64` for Intel, extract the ZIP, and move `Papergraph.app` to Applications. Requires macOS 14 or newer; the .NET runtime is included.
+Download [0.15.0-preview.7](https://github.com/wangyuer1-lang/papergraph/releases/tag/v0.15.0-preview.7). Use `macos-arm64` for Apple Silicon or `macos-x64` for Intel, extract the ZIP, and move `Papergraph.app` to Applications. Requires macOS 14 or newer; the .NET runtime is included.
 
 This preview is ad-hoc signed and is not notarized by Apple. If macOS blocks it, review [Apple’s instructions for opening an app from an unidentified developer](https://support.apple.com/en-us/102445). Do not disable Gatekeeper globally. Intel builds have not yet been tested on Intel hardware.
 

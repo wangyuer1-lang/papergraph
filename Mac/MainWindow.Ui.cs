@@ -28,6 +28,7 @@ public partial class MainWindow
     readonly TextBlock edgeLabel=new(){FontSize=18,Margin=new(0,0,0,15)};
     readonly UniformGrid directionButtons=new(){Columns=3,Margin=new(0,0,0,15)},relationButtons=new(){Columns=3},roleButtons=new(){Columns=2,Margin=new(0,0,0,8)};
     readonly DockPanel orderPanel=new(){Margin=new(0,0,0,18)};
+    readonly ScrollViewer edgeScroll=new(){HorizontalScrollBarVisibility=ScrollBarVisibility.Disabled};
     readonly TextBox textOrder=new(){Width=62,Margin=new(12,0,0,0)};
     readonly List<Action> themeBindings=[];
     IBrush Ui(string key)=>(IBrush)Resources[key]!;
@@ -86,7 +87,7 @@ public partial class MainWindow
         edgePanel.Spacing=0;edgePanel.Margin=new(3,12,3,12);var roleLabel=Label("Text role");roleLabel.FontSize=12;roleLabel.FontWeight=FontWeight.Normal;roleLabel.Margin=new(0,0,0,5);edgePanel.Children.Add(roleLabel);edgePanel.Children.Add(roleButtons);
         var orderLabel=Label("Branch order");orderLabel.FontSize=12;orderLabel.FontWeight=FontWeight.Normal;orderLabel.VerticalAlignment=VerticalAlignment.Center;orderPanel.Children.Add(orderLabel);textOrder.Classes.Add("outline");orderPanel.Children.Add(textOrder);edgePanel.Children.Add(orderPanel);edgePanel.Children.Add(edgeLabel);edgePanel.Children.Add(directionButtons);edgePanel.Children.Add(relationButtons);
         var custom=Button("Custom…",()=>_=CustomRelation());custom.HorizontalAlignment=HorizontalAlignment.Left;custom.FontSize=13;custom.Margin=new(0,16,0,0);edgePanel.Children.Add(custom);
-        var edgeScroll=new ScrollViewer{Content=edgePanel,HorizontalScrollBarVisibility=ScrollBarVisibility.Disabled};Grid.SetRow(edgeScroll,1);editorBody.Children.Add(edgeScroll);
+        edgeScroll.Content=edgePanel;Grid.SetRow(edgeScroll,1);editorBody.Children.Add(edgeScroll);
         var notesLayout=new DockPanel();notesPanel.Child=notesLayout;Grid.SetRow(notesPanel,2);editorLayout.Children.Add(notesPanel);
         var notesHead=new DockPanel{LastChildFill=true,Margin=new(4,8,4,5)};DockPanel.SetDock(notesHead,Dock.Top);notesLayout.Children.Add(notesHead);
         notePages.ItemsSource=new[]{"1","2","3","4"};notePages.Width=112;DockPanel.SetDock(notePages,Dock.Right);notesHead.Children.Add(notePages);
