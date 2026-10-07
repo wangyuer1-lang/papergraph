@@ -31,5 +31,5 @@ jobs:
           name: macOS-test-evidence
           path: |
             ${{ runner.temp }}/papergraph-tests/test-failure.txt
-            ${{ runner.temp }}/papergraph-tests/mac-self-test.png
+            ${{ runner.temp }}/papergraph-tests/*.png
             ${{ runner.temp }}/papergraph-tests/test-results.txt

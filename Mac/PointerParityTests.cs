@@ -57,9 +57,15 @@ public partial class MainWindow
             var symbol=(ToolbarGlyph)themeButton.Content!;
             Check(symbol.Symbol==(isDark?"☀":"☾"),"Theme button uses the correct deterministic sun/moon silhouette");
             var center=symbol.TranslatePoint(new(symbol.Bounds.Width/2,symbol.Bounds.Height/2),themeButton)!.Value;
-            Check(Math.Abs(center.X-themeButton.Bounds.Width/2)<.5&&Math.Abs(center.Y-themeButton.Bounds.Height/2)<.5,"Theme icon is centred inside its button");
+            // Odd glyph sizes in even buttons can land half a physical pixel
+            // from the centre when layout rounding is enabled (e.g. 21 in 32
+            // on the CI runner's 1x display). Retina hides that quantisation.
+            var halfPixel=.5/RenderScaling+1e-6;
+            Check(Math.Abs(center.X-themeButton.Bounds.Width/2)<=halfPixel&&Math.Abs(center.Y-themeButton.Bounds.Height/2)<=halfPixel,"Theme icon is centred inside its button");
             var plus=this.GetVisualDescendants().OfType<ToolbarGlyph>().Where(g=>g.Symbol=="＋").ToArray();
-            Check(plus.Length==2&&plus.All(g=>{var b=(Button)g.GetVisualAncestors().First(a=>a is Button);var c=g.TranslatePoint(new(g.Bounds.Width/2,g.Bounds.Height/2),b)!.Value;return Math.Abs(c.Y-b.Bounds.Height/2)<.5;}),"Toolbar and library plus icons keep a centred baseline");
+            var plusOffsets=plus.Select(g=>{var b=(Button)g.GetVisualAncestors().First(a=>a is Button);var c=g.TranslatePoint(new(g.Bounds.Width/2,g.Bounds.Height/2),b)!.Value;return Math.Abs(c.Y-b.Bounds.Height/2);}).ToArray();
+            Console.WriteLine($"Icon alignment: scale={RenderScaling}, plus count={plus.Length}, vertical offsets={string.Join(",",plusOffsets)}");
+            Check(plus.Length==2&&plusOffsets.All(offset=>offset<=halfPixel),"Toolbar and library plus icons keep a centred baseline");
             Press(themeButton,new(8,8),false);await Flush();
             var presenter=themeButton.GetVisualDescendants().OfType<ContentPresenter>().Single();
             Check(themeButton.IsPressed&&Equals(themeButton.Background,Ui("HoverBrush"))&&presenter.Background==null&&presenter.BorderThickness==default&&themeButton.FocusAdorner==null&&Graph.FocusAdorner==null,"Pressed buttons use the original hover fill with no inherited black presenter or focus frame");
