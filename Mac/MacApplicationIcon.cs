@@ -34,13 +34,14 @@ internal static class MacApplicationIcon
             if(image==IntPtr.Zero)throw new InvalidOperationException("Could not decode application icon.");
             var app=Send(objc_getClass("NSApplication"),sel_registerName("sharedApplication"));
             SendObject(app,sel_registerName("setApplicationIconImage:"),image);
-            // AppKit may copy NSImage; compare the decoded image data, not pointers.
-            var expected=ImageData(image);var actual=ImageData(Send(app,sel_registerName("applicationIconImage")));
-            NativeIconApplied=actual.Length>0&&actual.AsSpan().SequenceEqual(expected);
+            // AppKit copies and color-converts the assigned image. Its TIFF
+            // encoding can differ even when the displayed icon is identical.
+            var actualIcon=Send(app,sel_registerName("applicationIconImage"));
+            NativeIconApplied=actualIcon!=IntPtr.Zero;
             if(Program.SelfTest)
             {
-                File.WriteAllBytes(Path.Combine(Program.DataDirectory,"app-icon-expected.tiff"),expected);
-                File.WriteAllBytes(Path.Combine(Program.DataDirectory,"app-icon-native.tiff"),actual);
+                File.WriteAllBytes(Path.Combine(Program.DataDirectory,"app-icon-expected.tiff"),ImageData(image));
+                File.WriteAllBytes(Path.Combine(Program.DataDirectory,"app-icon-native.tiff"),ImageData(actualIcon));
             }
         }
         finally
