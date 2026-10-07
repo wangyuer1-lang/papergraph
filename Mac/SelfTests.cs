@@ -48,6 +48,7 @@ public partial class MainWindow
         Check(doc.Node("one")!.Title=="全文编辑の検証"&&currentFullText.Text.Contains("全文编辑の検証"),"Editing the source updates live full text");
         ToggleFullText();Save();
         Check(!PathIdentity.Same("/tmp/Library/A.papergraph","/tmp/Library/a.papergraph")&&!string.Equals(AgentBridge.PipeName("/tmp/Library"),AgentBridge.PipeName("/tmp/library")),"macOS paths and IPC identities preserve case");
+        await RunInspectorEditingTests();
         await RunParityTests();
         await RunPointerParityTests();
         await RunMacUsabilityTests();
