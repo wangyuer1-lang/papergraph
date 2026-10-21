@@ -23,6 +23,14 @@ jobs:
             throw 'Self-tests failed'
           }
           Get-Content ./artifacts/build/test-results.txt
+      - name: LAN sync merge, recovery and loopback TLS tests
+        shell: pwsh
+        run: |
+          $process = Start-Process ./artifacts/build/papergraph.exe -ArgumentList '--lan-sync-test' -WindowStyle Hidden -Wait -PassThru
+          if ($process.ExitCode -ne 0) {
+            Get-Content ./artifacts/build/test-failure.txt
+            throw 'LAN sync tests failed'
+          }
       - name: Package Windows preview
         shell: pwsh
         run: |
@@ -37,3 +45,12 @@ jobs:
           name: Papergraph-Windows-preview
           path: artifacts/*.zip
           if-no-files-found: error
+      - name: Upload Windows test evidence
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: Windows-test-evidence
+          path: |
+            artifacts/build/test-results.txt
+            artifacts/build/test-failure.txt
+            artifacts/build/*.png

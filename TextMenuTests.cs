@@ -15,7 +15,7 @@ public static class TextMenuTests
         foreach(var dark in new[]{true,false,true})
         {
             if(window.Graph.Dark!=dark)window.ThemeButton.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
-            foreach(var editor in new[]{window.PropositionBox,window.NotesBox,window.CaptionBox,window.DocumentTitleBox})
+            foreach(var editor in new System.Windows.Controls.Primitives.TextBoxBase[]{window.PropositionBox,window.NotesBox,window.CaptionBox,window.DocumentTitleBox})
             {
                 var menu=editor.ContextMenu;Check(menu!=null,"Each text editor has an explicit themed context menu");
                 menu!.ApplyTemplate();menu.Measure(new Size(400,600));menu.Arrange(new Rect(menu.DesiredSize));menu.UpdateLayout();

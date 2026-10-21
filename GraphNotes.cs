@@ -19,8 +19,8 @@ internal static class GraphNotes
     internal const int MaxAdditionalPages = 3;
     internal static string AllText(IGraphNotes item) => string.Join("\n", new[]{item.Note}.Concat(item.AdditionalNotes
         .Select(p=>string.Join("\n",new[]{p.Title,p.Body}.Where(s=>s.Length>0)))).Where(s=>s.Length>0));
-    internal static object[] Snapshot(IGraphNotes item) => new object[]{new{page=1,title="",body=item.Note,agentWritable=false}}
-        .Concat(item.AdditionalNotes.Select((p,i)=>(object)new{page=i+2,title=p.Title,body=p.Body,agentWritable=true})).ToArray();
+    internal static object[] Snapshot(IGraphNotes item,bool agentReadOnly=false) => new object[]{new{page=1,title="",body=item.Note,agentWritable=false}}
+        .Concat(item.AdditionalNotes.Select((p,i)=>(object)new{page=i+2,title=p.Title,body=p.Body,agentWritable=!agentReadOnly})).ToArray();
     internal static void Validate(IGraphNotes item)
     {
         if(item.AdditionalNotes==null||item.AdditionalNotes.Count>MaxAdditionalPages||item.AdditionalNotes.Any(p=>p==null||p.Title==null||p.Body==null))

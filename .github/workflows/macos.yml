@@ -17,6 +17,10 @@ jobs:
       - name: Native desktop and agent regression tests
         shell: bash
         run: dotnet run --project Mac/Papergraph.Mac.csproj -c Release -- --self-test --data-dir "$RUNNER_TEMP/papergraph-tests"
+      - name: Full text editing and reference tests
+        run: dotnet run --project Mac/Papergraph.Mac.csproj -c Release -- --full-text-edit-test --data-dir "$RUNNER_TEMP/papergraph-full-text-tests"
+      - name: LAN sync merge, recovery and loopback TLS tests
+        run: dotnet run --project Mac/Papergraph.Mac.csproj -c Release -- --lan-sync-test --data-dir "$RUNNER_TEMP/papergraph-sync-tests"
       - name: Build Apple Silicon and Intel app bundles
         run: |
           scripts/package-macos.sh arm64

@@ -28,7 +28,6 @@ public partial class MainWindow
     readonly TextBlock edgeLabel=new(){FontSize=18,Margin=new(0,0,0,15)};
     readonly UniformGrid directionButtons=new(){Columns=3,Margin=new(0,0,0,15)},relationButtons=new(){Columns=3},roleButtons=new(){Columns=2,Margin=new(0,0,0,8)};
     readonly DockPanel orderPanel=new(){Margin=new(0,0,0,18)};
-    readonly ScrollViewer edgeScroll=new(){HorizontalScrollBarVisibility=ScrollBarVisibility.Disabled};
     readonly TextBox textOrder=new(){Width=62,Margin=new(12,0,0,0)};
     readonly List<Action> themeBindings=[];
     IBrush Ui(string key)=>(IBrush)Resources[key]!;
@@ -81,13 +80,17 @@ public partial class MainWindow
         colorButton=Button("",()=>ShowColors(colorButton));colorButton.Content=nodeGlyph;colorButton.Padding=new(5,8);Tip(colorButton,"Mark color");DockPanel.SetDock(colorButton,Dock.Left);head.Children.Add(colorButton);
         DockPanel.SetDock(editorSymbol,Dock.Left);head.Children.Add(editorSymbol);heading.FontSize=12;heading.FontWeight=FontWeight.Normal;heading.Margin=new(7,0,0,0);heading.VerticalAlignment=VerticalAlignment.Center;head.Children.Add(heading);
         Grid.SetRow(emptyEditor,1);editorLayout.Children.Add(emptyEditor);localize.Add(()=>emptyEditor.Text=T("Select an object"));
-        var editorBody=new Grid{RowDefinitions=new("Auto,*")};Grid.SetRow(editorBody,1);editorLayout.Children.Add(editorBody);
+        var editorBody=new Grid{RowDefinitions=new("Auto,Auto,*")};Grid.SetRow(editorBody,1);editorLayout.Children.Add(editorBody);
         captionBox.AcceptsReturn=false;captionBox.Padding=new(4,8);captionPanel.Child=captionBox;editorBody.Children.Add(captionPanel);Tip(captionBox,"Title");
-        bodyBox.MinHeight=0;bodyBox.FontSize=18;bodyBox.Padding=new(4,10,9,10);bodyBox.Margin=new(0,8,0,0);bodyBox.VerticalContentAlignment=VerticalAlignment.Top;ScrollViewer.SetVerticalScrollBarVisibility(bodyBox,ScrollBarVisibility.Auto);Grid.SetRow(bodyBox,1);editorBody.Children.Add(bodyBox);Tip(bodyBox,"Proposition");
+        BuildTextColorToolbar(editorBody);bodyBox.Classes.Add("proposition-colors");
+        bodyBox.MinHeight=0;bodyBox.FontSize=18;bodyBox.Padding=new(4,10,9,10);bodyBox.Margin=new(0,8,0,0);bodyBox.VerticalContentAlignment=VerticalAlignment.Top;ScrollViewer.SetVerticalScrollBarVisibility(bodyBox,ScrollBarVisibility.Auto);Grid.SetRow(bodyBox,2);editorBody.Children.Add(bodyBox);Tip(bodyBox,"Proposition");
         edgePanel.Spacing=0;edgePanel.Margin=new(3,12,3,12);var roleLabel=Label("Text role");roleLabel.FontSize=12;roleLabel.FontWeight=FontWeight.Normal;roleLabel.Margin=new(0,0,0,5);edgePanel.Children.Add(roleLabel);edgePanel.Children.Add(roleButtons);
         var orderLabel=Label("Branch order");orderLabel.FontSize=12;orderLabel.FontWeight=FontWeight.Normal;orderLabel.VerticalAlignment=VerticalAlignment.Center;orderPanel.Children.Add(orderLabel);textOrder.Classes.Add("outline");orderPanel.Children.Add(textOrder);edgePanel.Children.Add(orderPanel);edgePanel.Children.Add(edgeLabel);edgePanel.Children.Add(directionButtons);edgePanel.Children.Add(relationButtons);
         var custom=Button("Custom…",()=>_=CustomRelation());custom.HorizontalAlignment=HorizontalAlignment.Left;custom.FontSize=13;custom.Margin=new(0,16,0,0);edgePanel.Children.Add(custom);
-        edgeScroll.Content=edgePanel;Grid.SetRow(edgeScroll,1);editorBody.Children.Add(edgeScroll);
+        var edgeScroll=new ScrollViewer{Content=edgePanel,HorizontalScrollBarVisibility=ScrollBarVisibility.Disabled};
+        // Hide the viewport too; an empty ScrollViewer still intercepts clicks over the body editor.
+        edgeScroll.Bind(IsVisibleProperty,new Binding(nameof(Control.IsVisible)){Source=edgePanel});
+        Grid.SetRow(edgeScroll,2);editorBody.Children.Add(edgeScroll);
         var notesLayout=new DockPanel();notesPanel.Child=notesLayout;Grid.SetRow(notesPanel,2);editorLayout.Children.Add(notesPanel);
         var notesHead=new DockPanel{LastChildFill=true,Margin=new(4,8,4,5)};DockPanel.SetDock(notesHead,Dock.Top);notesLayout.Children.Add(notesHead);
         notePages.ItemsSource=new[]{"1","2","3","4"};notePages.Width=112;DockPanel.SetDock(notePages,Dock.Right);notesHead.Children.Add(notePages);
@@ -101,22 +104,26 @@ public partial class MainWindow
     }
     void ConfigureTextMenu(TextBox box)
     {
-        var undoItem=MenuAction("Undo",box.Undo,"Meta+Z");var redoItem=MenuAction("Redo",box.Redo,"Meta+Shift+Z");
+        var undoItem=MenuAction("Undo",()=>{if(box==manuscript)UndoFullText(false);else if(box==bodyBox)UndoBody(false);else box.Undo();},"Meta+Z");var redoItem=MenuAction("Redo",()=>{if(box==manuscript)UndoFullText(true);else if(box==bodyBox)UndoBody(true);else box.Redo();},"Meta+Shift+Z");
         var menu=new ContextMenu{ItemsSource=new object[]{undoItem,redoItem,new Separator(),MenuAction("Cut",box.Cut,"Meta+X"),MenuAction("Copy",box.Copy,"Meta+C"),MenuAction("Paste",box.Paste,"Meta+V"),MenuAction("Delete",()=>box.SelectedText=""),new Separator(),MenuAction("Select all",box.SelectAll,"Meta+A")}};
-        menu.Opening+=(s,e)=>{undoItem.IsEnabled=box.CanUndo;redoItem.IsEnabled=box.CanRedo;};box.ContextMenu=menu;
+        menu.Opening+=(s,e)=>{undoItem.IsEnabled=box==bodyBox||box==manuscript?undo.Count>0:box.CanUndo;redoItem.IsEnabled=box==bodyBox||box==manuscript?redo.Count>0:box.CanRedo;};box.ContextMenu=menu;
     }
     void BuildMenus()
     {
         MenuItem Menu(string title){var item=new MenuItem{Header=T(title)};localize.Add(()=>item.Header=T(title));return item;}
         var f=Menu("File");var edit=Menu("Edit");var insert=Menu("Insert");var view=Menu("View");var help=Menu("Help");mainMenu.ItemsSource=new[]{f,edit,insert,view,help};
-        f.ItemsSource=new[]{MenuAction("New paper",NewDocument),MenuAction("Open…",()=>_=OpenPicker(),"Meta+O"),MenuAction("Save",()=>Save(),"Meta+S"),MenuAction("Save as…",()=>_=SaveAs()),MenuAction("Show in folder",ShowGraphFolder),MenuAction("Export Markdown…",()=>_=ExportMarkdown())};
-        var undoItem=MenuAction("Undo",Undo,"Meta+Z");var redoItem=MenuAction("Redo",Redo,"Meta+Shift+Z");edit.ItemsSource=new object[]{undoItem,redoItem,MenuAction("Copy graph selection",()=>_=CopyGraph(),"Meta+C"),MenuAction("Paste into graph",()=>_=PasteGraph(),"Meta+V"),MenuAction("Selection actions",()=>ShowGraphContext(canvasActionsButton)),MenuAction("Delete selection",DeleteSelection,"Back")};edit.SubmenuOpened+=(s,e)=>{undoItem.IsEnabled=undo.Count>0;redoItem.IsEnabled=redo.Count>0;};
+        f.ItemsSource=new[]{MenuAction("New paper",NewDocument),MenuAction("Open…",()=>_=OpenPicker(),"Meta+O"),MenuAction("Save",()=>Save(),"Meta+S"),MenuAction("Save as…",()=>_=SaveAs()),MenuAction("Show in folder",ShowGraphFolder),MenuAction("Export Markdown…",()=>_=ExportMarkdown()),MenuAction("Device sync…",OpenLanSync)};
+        var undoItem=MenuAction("Undo",()=>UndoFocused(false),"Meta+Z");var redoItem=MenuAction("Redo",()=>UndoFocused(true),"Meta+Shift+Z");edit.ItemsSource=new object[]{undoItem,redoItem,MenuAction("Copy graph selection",()=>_=CopyGraph(),"Meta+C"),MenuAction("Paste into graph",()=>_=PasteGraph(),"Meta+V"),MenuAction("Selection actions",()=>ShowGraphContext(canvasActionsButton)),MenuAction("Delete selection",DeleteSelection,"Back")};edit.SubmenuOpened+=(s,e)=>{undoItem.IsEnabled=undo.Count>0;redoItem.IsEnabled=redo.Count>0;};
         var frame=MenuAction("Create □",BeginRegion,"R");frame.Icon=new ObjectGlyph{Kind="frame"};var circle=MenuAction("Create ◎",CreateCircle,"Meta+G");circle.Icon=new ObjectGlyph{Kind="circle"};insert.ItemsSource=new[]{MenuAction("Proposition",()=>AddNode(FreePosition()),"Meta+N"),frame,circle};
         var links=Menu("Connections");links.ItemsSource=new[]{(ConnectionDisplay.All,"All"),(ConnectionDisplay.WithinFrames,"Within □"),(ConnectionDisplay.AcrossFrames,"Across □")}.Select(pair=>{var item=MenuAction(pair.Item2,()=>SetConnectionDisplay(pair.Item1));item.ToggleType=MenuItemToggleType.CheckBox;links.SubmenuOpened+=(s,e)=>item.IsChecked=Graph.ConnectionDisplay==pair.Item1;return item;}).ToArray();
         var full=MenuAction("Live full text",ToggleFullText);full.ToggleType=MenuItemToggleType.CheckBox;view.SubmenuOpened+=(s,e)=>full.IsChecked=fullTextVisible;
         var titles=MenuAction("Show titles",()=>Graph.ShowCaptions=!Graph.ShowCaptions,"Shift+Space");titles.ToggleType=MenuItemToggleType.CheckBox;view.SubmenuOpened+=(s,e)=>titles.IsChecked=Graph.ShowCaptions;
         var language=Menu("Language");language.ItemsSource=Localization.Languages.Select(pair=>{var item=MenuAction(pair.Name,()=>SetLanguage(pair.Code));item.ToggleType=MenuItemToggleType.Radio;language.SubmenuOpened+=(s,e)=>item.IsChecked=Localization.Language==pair.Code;return item;}).ToArray();
-        view.ItemsSource=new object[]{MenuAction("Select",()=>SetCanvasTool(false),"V"),MenuAction("Pan",()=>SetCanvasTool(true),"H"),titles,MenuAction("Fit all",()=>Graph.Fit(),"F"),MenuAction("Fit for editing",()=>Graph.Fit(editing:true),"Shift+F"),MenuAction("Focus selection / return",()=>Graph.ToggleDetail(),"Z"),MenuAction("Arrange inside",()=>Graph.ArrangeNaturally()),MenuAction("Switch theme",()=>{dark=!dark;ApplyTheme();SaveSettings();}),links,full,language};
+        var selectTool=MenuAction("Select",()=>SetCanvasTool(false),"V");
+        var panTool=MenuAction("Pan",()=>SetCanvasTool(true),"H");
+        selectTool.ToggleType=panTool.ToggleType=MenuItemToggleType.Radio;
+        view.SubmenuOpened+=(s,e)=>{selectTool.IsChecked=!Graph.MacPanTool;panTool.IsChecked=Graph.MacPanTool;};
+        view.ItemsSource=new object[]{selectTool,panTool,titles,MenuAction("Fit all",()=>Graph.Fit(),"F"),MenuAction("Fit for editing",()=>Graph.Fit(editing:true),"Shift+F"),MenuAction("Focus selection / return",()=>Graph.ToggleDetail(),"Z"),MenuAction("Arrange inside",()=>Graph.ArrangeNaturally()),MenuAction("Switch theme",()=>{dark=!dark;ApplyTheme();SaveSettings();}),links,full,language};
         help.ItemsSource=new[]{MenuAction("Controls and symbols",()=>_=ShowHelp())};
     }
     void SetLanguage(string language){Localization.Language=Localization.Normalize(language);foreach(var refresh in localize)refresh();ApplyTheme();RefreshFullText(true);SaveSettings();}
@@ -124,9 +131,9 @@ public partial class MainWindow
     void UpdateConnectionButton(){if(connectionButton==null)return;var label=Graph.ConnectionDisplay switch{ConnectionDisplay.WithinFrames=>"Within",ConnectionDisplay.AcrossFrames=>"Across",_=>"All"};connectionButton.Content=T("Links: ")+T(label);Tip(connectionButton,"Show all, within-frame or cross-frame connections");}
     void BuildArrowChoices(Relation edge)
     {
-        roleButtons.Children.Clear();foreach(var (value,label) in new[]{("flow","Body"),("reference","Reference")}){var b=Button(label,()=>SetTextRole(edge.Id,value));b.Margin=new(2);b.Classes.Set("selected",(edge.TextRole??"flow")==value);roleButtons.Children.Add(b);}
+        roleButtons.Children.Clear();foreach(var (value,label) in new[]{("flow","Body"),("reference","Reference")}){var b=Button(label,()=>SetTextRole(edge.Id,value));b.Margin=new(2);b.Classes.Set("selected",(edge.TextRole??"flow")==value);if(value=="reference")Tip(b,"Reference material → cited proposition. Adds the material in parentheses after that proposition.");roleButtons.Children.Add(b);}
         orderPanel.IsVisible=!GraphFullText.IsReference(edge);textOrder.Text=edge.TextOrder==0?"":edge.TextOrder.ToString();edgeLabel.Text=T(GraphStyle.RelationName(edge.Label));
-        directionButtons.Children.Clear();foreach(var (value,symbol,tip) in new[]{("reverse","←","Reverse arrow"),("forward","→","Forward arrow"),("both","↔","Both directions")}){var b=Button(symbol,()=>SetDirection(edge.Id,value));b.FontSize=24;b.Height=42;b.Margin=new(2);b.Classes.Set("selected",edge.Direction==value);Tip(b,tip);directionButtons.Children.Add(b);}
+        directionButtons.Children.Clear();foreach(var (value,symbol,tip) in new[]{("reverse","←","Reverse arrow"),("forward","→","Forward arrow"),("both","↔","Both directions")}){var b=Button(symbol,()=>SetDirection(edge.Id,value));b.FontSize=24;b.Height=42;b.Margin=new(2);b.Classes.Set("selected",edge.Direction==value);b.IsEnabled=value!="both"||!GraphFullText.IsReference(edge);Tip(b,b.IsEnabled?tip:GraphFullText.ReferenceDirectionHint);directionButtons.Children.Add(b);}
         relationButtons.Children.Clear();foreach(var value in GraphStyle.Relations){var b=Button("",()=>SetRelation(edge.Id,value));b.Content=new EdgeGlyph{Label=value,Stroke=GraphStyle.Brush(dark?"#E1E6ED":"#273747"),Surface=GraphStyle.Brush(dark?"#232730":"#FFFFFF")};b.Height=55;b.Margin=new(2);b.Classes.Set("selected",GraphStyle.RelationName(edge.Label)==value);Tip(b,value);relationButtons.Children.Add(b);}
     }
 }

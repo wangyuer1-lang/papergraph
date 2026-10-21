@@ -11,3 +11,5 @@ Page management also supports listGraphs, createGraph, duplicateGraph and openGr
 Category management supports createCategory, renameCategory, moveGraphs and removeCategory using a fresh libraryRevision from listGraphs. Categories do not move files. Frames accept caption, body and note independently and are valid relation endpoints. Preserve all existing text; use the live interface for authorized content changes. See Agent guide.md for atomicity and retry semantics.
 
 Notes page 1 is reserved for the user. Ordinary agent writes must use fixed pages 2–4; the legacy note write targets page 2. Preserve user-authored notes. Only a direct user request to move identified legacy agent content permits the lossless moveFirstPage operation with exact source text and an empty destination. Never use it for unrequested migration. See Agent guide.md for the schema.
+
+Honor graph-level `agentReadOnly`/`agentWritable` permissions returned by the live interface. A protected graph may be read but not modified by an agent. Do not bypass this with UI automation, backing-file edits, an older app or a copy. Only the user may disable protection through the graph menu.

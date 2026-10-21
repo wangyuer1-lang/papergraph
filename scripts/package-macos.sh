@@ -17,13 +17,15 @@ cat > "$app/Contents/Info.plist" <<PLIST
 <key>CFBundleName</key><string>Papergraph</string>
 <key>CFBundleDisplayName</key><string>Papergraph</string>
 <key>CFBundleIdentifier</key><string>org.papergraph.desktop</string>
-<key>CFBundleVersion</key><string>0.15.7</string>
-<key>CFBundleShortVersionString</key><string>0.15.0</string>
+<key>CFBundleVersion</key><string>0.16.2008</string>
+<key>CFBundleShortVersionString</key><string>0.16.0</string>
 <key>CFBundleIconFile</key><string>Papergraph.icns</string>
 <key>CFBundleExecutable</key><string>papergraph</string>
 <key>CFBundlePackageType</key><string>APPL</string>
 <key>NSHighResolutionCapable</key><true/>
 <key>LSMinimumSystemVersion</key><string>14.0</string>
+<key>NSLocalNetworkUsageDescription</key><string>Connect to another computer on your local network to sync Papergraph documents after you confirm.</string>
+<key>NSBluetoothAlwaysUsageDescription</key><string>Sync Papergraph with your nearby Android device over Bluetooth after both devices confirm.</string>
 <key>NSPrincipalClass</key><string>NSApplication</string>
 <key>NSHumanReadableCopyright</key><string>MIT License · papergraph contributors</string>
 </dict></plist>
@@ -37,5 +39,5 @@ else
   codesign --force --deep --sign - "$app"
 fi
 codesign --verify --deep --strict "$app"
-ditto -c -k --sequesterRsrc --keepParent "$app" "$output_dir/Papergraph-0.15.0-preview.7-macos-$arch.zip"
-echo "$output_dir/Papergraph-0.15.0-preview.7-macos-$arch.zip"
+ditto -c -k --sequesterRsrc --keepParent "$app" "$output_dir/Papergraph-0.16.0-preview.8-macos-$arch.zip"
+echo "$output_dir/Papergraph-0.16.0-preview.8-macos-$arch.zip"

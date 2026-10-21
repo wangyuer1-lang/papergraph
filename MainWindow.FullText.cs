@@ -2,9 +2,6 @@ using System.Globalization;
 using System.Windows;
 using System.Windows.Automation;
 using System.Windows.Controls;
-using System.Windows.Controls.Primitives;
-using System.Windows.Documents;
-using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Threading;
 
@@ -14,13 +11,10 @@ public partial class MainWindow
 {
     bool fullTextVisible;
     readonly DispatcherTimer fullTextTimer=new(){Interval=TimeSpan.FromMilliseconds(180)};
-    readonly Dictionary<string,Run> fullTextRuns=[];
-    string? highlightedTextId;
     Button? fullTextButton;
     readonly Dictionary<string,string> fullTextPageAnchors=new(StringComparer.OrdinalIgnoreCase);
     string? fullTextDocument;
     string? fullTextAnchor;
-    TextStatistics fullTextPageStatistics;
     internal FullTextResult CurrentFullText {get;private set;}=new("",[],[],0,0,0);
     internal int CurrentFullTextPageIndex {get;private set;}
     internal FullTextPage? CurrentFullTextPage=>CurrentFullText.Pages.ElementAtOrDefault(CurrentFullTextPageIndex);
@@ -36,21 +30,10 @@ public partial class MainWindow
         fullTextTimer.Tick+=(s,e)=>{fullTextTimer.Stop();RefreshFullText();};
         CopyFullTextButton.Click+=(s,e)=>
         {
-            RefreshFullText();var text=CurrentFullTextPage?.Text;if(string.IsNullOrEmpty(text))return;
+            RefreshFullText();var text=FullTextBox.Text;if(string.IsNullOrEmpty(text))return;
             try{Clipboard.SetText(text);Notify(Localization.Text("Page text copied"));}catch(Exception ex){Notify(Localization.Text("Could not copy: ")+ex.Message);}
         };
-        FullTextBox.PreviewMouseLeftButtonUp+=(s,e)=>
-        {
-            if(!FullTextBox.Selection.IsEmpty)return;
-            var position=FullTextBox.GetPositionFromPoint(e.GetPosition(FullTextBox),true);
-            DependencyObject? parent=position?.Parent;
-            while(parent is not null and not Run)parent=parent is FrameworkContentElement content?content.Parent:null;
-            if(parent is Run {Tag:string id})FocusTextObject(id);
-        };
-        FullTextBox.SelectionChanged+=(s,e)=>RefreshFullTextCount();
-        var copyMenu=Menu(FullTextBox,PlacementMode.MousePoint);
-        copyMenu.Items.Add(new MenuItem{Header=Localization.Text("Copy"),Command=ApplicationCommands.Copy,CommandTarget=FullTextBox});
-        copyMenu.Items.Add(new MenuItem{Header=Localization.Text("Select all"),Command=ApplicationCommands.SelectAll,CommandTarget=FullTextBox});foreach(var item in copyMenu.Items.OfType<MenuItem>())Localization.Bind(item,HeaderedItemsControl.HeaderProperty,item.Command==ApplicationCommands.Copy?"Copy":"Select all");FullTextBox.ContextMenu=copyMenu;
+        InitializeFullTextEditing();
         TextOrderBox.TextChanged+=(s,e)=>
         {
             if(updating||editorKind!="edge"||editorId==null)return;
@@ -78,10 +61,10 @@ public partial class MainWindow
     }
     internal void RefreshFullText()
     {
-        if(!fullTextVisible)return;
+        if(!fullTextVisible||buildingFullText||fullTextComposing)return;
         bool sameDocument=string.Equals(fullTextDocument,file,StringComparison.OrdinalIgnoreCase);
         var previous=sameDocument?CurrentFullTextPage:null;
-        if(!sameDocument){fullTextDocument=file;fullTextAnchor=fullTextPageAnchors.GetValueOrDefault(file);}
+        if(!sameDocument){fullTextBuffer=null;fullTextDocument=file;fullTextAnchor=fullTextPageAnchors.GetValueOrDefault(file);}
         CurrentFullText=GraphFullText.Build(doc);
         var index=FindFullTextPage(fullTextAnchor);
         if(index<0&&previous!=null)
@@ -89,69 +72,65 @@ public partial class MainWindow
         CurrentFullTextPageIndex=Math.Max(0,index);
         RenderFullTextPage(sameDocument&&previous!=null&&CurrentFullTextPage?.ObjectIds.Intersect(previous.ObjectIds).Any()==true);
     }
-    int FindFullTextPage(string? id)=>id==null?-1:CurrentFullText.Pages.ToList().FindIndex(p=>p.ObjectIds.Contains(id)||p.EdgeIds.Contains(id));
+    int FindFullTextPage(string? id)=>id==null?-1:CurrentFullText.Pages.ToList().FindIndex(p=>p.ObjectIds.Contains(id)||p.EdgeIds.Contains(id)||p.Pieces.Any(x=>x.References.Any(r=>r.NodeId==id||r.EdgeId==id)));
     internal void SelectFullTextPage(int index)
     {
         if(index<0||index>=CurrentFullText.Pages.Count||index==CurrentFullTextPageIndex)return;
-        CurrentFullTextPageIndex=index;fullTextAnchor=null;RenderFullTextPage(false);
+        CurrentFullTextPageIndex=index;fullTextAnchor=null;fullTextBuffer=null;editKey="";RenderFullTextPage(false);
     }
     void RenderFullTextPage(bool preserveScroll)
     {
-        var page=CurrentFullTextPage;var offset=preserveScroll?FullTextBox.VerticalOffset:0;
-        fullTextPageStatistics=TextStatistics.Count(page?.Text??"");
-        fullTextRuns.Clear();highlightedTextId=null;
-        if(page!=null)
+        buildingFullText=true;
+        try
         {
-            if(fullTextAnchor==null||!page.ObjectIds.Contains(fullTextAnchor))fullTextAnchor=page.Pieces.FirstOrDefault()?.NodeId??page.ObjectIds.FirstOrDefault();
-            if(fullTextAnchor!=null)fullTextPageAnchors[file]=fullTextAnchor;
-        }
-        FullTextPageTabs.Children.Clear();
-        FullTextPagesScroller.Visibility=CurrentFullText.Pages.Count>1?Visibility.Visible:Visibility.Collapsed;
-        for(int i=0;i<CurrentFullText.Pages.Count;i++)
-        {
-            var index=i;var number=(i+1).ToString(CultureInfo.InvariantCulture);
-            var tab=new RadioButton{Content=number,MinWidth=28,Width=double.NaN,GroupName="FullTextPages",Style=(Style)FindResource("NotePageTab"),
-                IsChecked=i==CurrentFullTextPageIndex,ToolTip=Localization.Format("Page {0} · {1} points",number,CurrentFullText.Pages[i].Pieces.Count)};
-            AutomationProperties.SetName(tab,"Full text page "+number);
-            tab.Checked+=(s,e)=>SelectFullTextPage(index);FullTextPageTabs.Children.Add(tab);
-        }
-        var flow=new FlowDocument{FontFamily=FontFamily,FontSize=16,PagePadding=new Thickness(0),LineHeight=27};
-        flow.SetResourceReference(FlowDocument.ForegroundProperty,"TextBrush");
-        Paragraph? paragraph=null;
-        foreach(var piece in page?.Pieces??[])
-        {
-            if(paragraph==null||piece.Separator.Contains("\n\n"))
+            var page=CurrentFullTextPage;var offset=preserveScroll?FullTextBox.VerticalOffset:0;
+            if(page!=null)
             {
-                paragraph=new Paragraph{Margin=new Thickness(0,0,0,18)};flow.Blocks.Add(paragraph);
+                if(fullTextAnchor==null||!page.ObjectIds.Contains(fullTextAnchor))fullTextAnchor=page.Pieces.FirstOrDefault()?.NodeId??page.ObjectIds.FirstOrDefault();
+                if(fullTextAnchor!=null)fullTextPageAnchors[file]=fullTextAnchor;
             }
-            else if(piece.Separator.Contains('\n'))paragraph.Inlines.Add(new LineBreak());
-            else if(piece.Separator.Length>0)paragraph.Inlines.Add(new Run(piece.Separator));
-            var node=doc.Node(piece.NodeId)!;
-            var run=new Run(piece.Text){Tag=piece.NodeId,Cursor=Cursors.Hand,ToolTip=(node.Caption.Length>0?node.Caption+" · ":"")+"Click to locate the source point"};
-            paragraph.Inlines.Add(run);fullTextRuns[piece.NodeId]=run;
+            FullTextPageTabs.Children.Clear();
+            FullTextPagesScroller.Visibility=CurrentFullText.Pages.Count>1?Visibility.Visible:Visibility.Collapsed;
+            for(int i=0;i<CurrentFullText.Pages.Count;i++)
+            {
+                var index=i;var number=(i+1).ToString(CultureInfo.InvariantCulture);
+                var tab=new RadioButton{Content=number,MinWidth=28,Width=double.NaN,GroupName="FullTextPages",Style=(Style)FindResource("NotePageTab"),
+                    IsChecked=i==CurrentFullTextPageIndex,ToolTip=Localization.Format("Page {0} · {1} points",number,CurrentFullText.Pages[i].Pieces.Count)};
+                AutomationProperties.SetName(tab,"Full text page "+number);
+                tab.Checked+=(s,e)=>SelectFullTextPage(index);FullTextPageTabs.Children.Add(tab);
+            }
+            bool preserve=fullTextBuffer!=null&&fullTextBuffer.PageId==page?.Id&&fullTextBufferRevision==revision&&fullTextBuffer.Matches(doc);
+            if(!preserve)fullTextBuffer=page==null?null:new FullTextEditBuffer(doc,page);
+            fullTextBufferRevision=revision;
+            int start=FullTextBox.SelectionStart,length=FullTextBox.SelectionLength;
+            FullTextBox.Text=fullTextBuffer?.Text??"";
+            FullTextBox.Select(preserveScroll?start:0,preserveScroll?length:0);
+            FullTextBox.SetColors(fullTextBuffer?.Colors(doc));
+            FullTextBox.IsReadOnly=fullTextBuffer?.Spans.Count is not >0;
+            FullTextBox.ScrollToVerticalOffset(offset);
+            RefreshFullTextCount();
+            FullTextEmpty.Visibility=FullTextBox.IsReadOnly?Visibility.Visible:Visibility.Collapsed;
+            FullTextEmpty.Text=Localization.Text(page?.BlockedPoints>0?"Reading order conflicts. Expand Checks to locate the connections.":"Connect points with Body arrows to see the text here.");
+            FullTextStatus.Text=(CurrentFullText.Pages.Count>1?Localization.Format("Page {0}/{1} · ",CurrentFullTextPageIndex+1,CurrentFullText.Pages.Count):"")+Localization.Format("{0} points · {1} excluded",page?.Pieces.Count??0,CurrentFullText.ExcludedPoints);
+            FullTextStatus.ToolTip="Points and blocked counts refer to the body text on this page. Excluded counts refer to points outside the body and its displayed references. Notes and container descriptions are not included.";
+            if(page?.BlockedPoints>0)FullTextStatus.Text+=$" · {page.BlockedPoints} blocked";
+            var issues=CurrentFullText.GeneralIssues.Concat(page?.Issues??[]).ToArray();
+            FullTextChecks.Header=Localization.Format("Checks · {0}",issues.Length);
+            FullTextChecks.Visibility=issues.Length==0?Visibility.Collapsed:Visibility.Visible;
+            FullTextIssueList.Children.Clear();
+            foreach(var issue in issues)
+            {
+                var button=new Button{Content=new TextBlock{Text=issue.Message,TextWrapping=TextWrapping.Wrap,FontSize=12},HorizontalAlignment=HorizontalAlignment.Left,HorizontalContentAlignment=HorizontalAlignment.Left,Padding=new Thickness(3,4,3,4),ToolTip=Localization.Text("Click to locate the object to check")};
+                var id=issue.ObjectId;button.Click+=(s,e)=>{if(id!=null)FocusTextObject(id);};FullTextIssueList.Children.Add(button);
+            }
+            CopyFullTextButton.IsEnabled=FullTextBox.Text.Length>0;
+            HighlightFullText(false);
         }
-        FullTextBox.Document=flow;FullTextBox.ScrollToVerticalOffset(offset);
-        RefreshFullTextCount();
-        FullTextEmpty.Visibility=page?.Pieces.Count>0?Visibility.Collapsed:Visibility.Visible;
-        FullTextEmpty.Text=Localization.Text(page?.BlockedPoints>0?"Reading order conflicts. Expand Checks to locate the connections.":"Connect points with Body arrows to see the text here.");
-        FullTextStatus.Text=(CurrentFullText.Pages.Count>1?Localization.Format("Page {0}/{1} · ",CurrentFullTextPageIndex+1,CurrentFullText.Pages.Count):"")+Localization.Format("{0} points · {1} excluded",page?.Pieces.Count??0,CurrentFullText.ExcludedPoints);
-        FullTextStatus.ToolTip="Points and blocked counts refer to this page. Excluded counts refer to the whole graph: isolated points and points connected only by reference or bidirectional arrows. Notes and container descriptions are not included.";
-        if(page?.BlockedPoints>0)FullTextStatus.Text+=$" · {page.BlockedPoints} blocked";
-        var issues=CurrentFullText.GeneralIssues.Concat(page?.Issues??[]).ToArray();
-        FullTextChecks.Header=Localization.Format("Checks · {0}",issues.Length);
-        FullTextChecks.Visibility=issues.Length==0?Visibility.Collapsed:Visibility.Visible;
-        FullTextIssueList.Children.Clear();
-        foreach(var issue in issues)
-        {
-            var button=new Button{Content=new TextBlock{Text=issue.Message,TextWrapping=TextWrapping.Wrap,FontSize=12},HorizontalAlignment=HorizontalAlignment.Left,HorizontalContentAlignment=HorizontalAlignment.Left,Padding=new Thickness(3,4,3,4),ToolTip=Localization.Text("Click to locate the object to check")};
-            var id=issue.ObjectId;button.Click+=(s,e)=>{if(id!=null)FocusTextObject(id);};FullTextIssueList.Children.Add(button);
-        }
-        CopyFullTextButton.IsEnabled=page?.Text.Length>0;
-        HighlightFullText(false);
+        finally{buildingFullText=false;CaptureFullTextSelection();}
     }
     void RefreshFullTextCount()
     {
-        var total=fullTextPageStatistics;
+        var total=TextStatistics.Count(FullTextBox.Text);
         string words=total.Words.ToString("N0",CultureInfo.InvariantCulture),characters=total.Characters.ToString("N0",CultureInfo.InvariantCulture);
         bool selected=!FullTextBox.Selection.IsEmpty;
         if(selected)
@@ -168,18 +147,16 @@ public partial class MainWindow
     }
     void HighlightFullText(bool reveal=true)
     {
-        if(reveal&&fullTextVisible)
+        if(!fullTextVisible||fullTextComposing||editingFullText)return;
+        bool onPage=fullTextBuffer?.Spans.Any(p=>p.NodeId==editorId)==true;
+        if(reveal&&!buildingFullText&&!onPage)
         {
             var index=FindFullTextPage(editorId);
-            if(index>=0&&index!=CurrentFullTextPageIndex){SelectFullTextPage(index);if(editorId!=null&&fullTextRuns.TryGetValue(editorId,out var selectedRun))selectedRun.BringIntoView();return;}
+            if(index>=0&&index!=CurrentFullTextPageIndex){SelectFullTextPage(index);return;}
         }
-        var selected=editorKind=="node"?editorId:null;if(highlightedTextId==selected)return;
-        if(highlightedTextId!=null&&fullTextRuns.TryGetValue(highlightedTextId,out var previous))previous.Background=Brushes.Transparent;
-        highlightedTextId=selected;
-        if(selected!=null&&fullTextRuns.TryGetValue(selected,out var run))
-        {run.SetResourceReference(TextElement.BackgroundProperty,"HoverBrush");if(reveal&&fullTextVisible)run.BringIntoView();}
+        FullTextBox.SetHighlight(fullTextBuffer?.Spans.Where(p=>editorKind=="node"&&p.NodeId==editorId).Select(p=>(p.Start,p.End))??[],Ui("HoverBrush"),reveal,fullTextBuffer?.ReferenceHighlights(dark));
     }
-    internal void FocusTextObject(string id)
+    internal void FocusTextObject(string id,bool focusCanvas=true)
     {
         if(!doc.HasEndpoint(id)&&!doc.Edges.Any(e=>e.Id==id))return;
         if(Graph.Scope!=null||Graph.BoardRegion!=null){boards.Push(CaptureBoard());Graph.SetBoard(null,null);BackButton.Visibility=Visibility.Collapsed;}
@@ -198,12 +175,12 @@ public partial class MainWindow
                 Graph.SetView(Graph.Zoom,new Point(Graph.ActualWidth/2-center.X*Graph.Zoom,Graph.ActualHeight/2-center.Y*Graph.Zoom));
             }
         }
-        ensurePending=false;Graph.Focus();
+        ensurePending=false;if(focusCanvas)Graph.Focus();
     }
     void BuildTextRoleChoices(Relation edge)
     {
         TextRoleChoices.Children.Clear();
-        foreach(var (role,label,tip) in new[]{("flow","Body","Sets the reading order of the body text"),("reference","Reference","A reference or association; does not set the reading order")})
+        foreach(var (role,label,tip) in new[]{("flow","Body","Sets the reading order of the body text"),("reference","Reference","Reference material → cited proposition. Adds the material in parentheses after that proposition.")})
         {
             var button=new Button{Content=Localization.Text(label),ToolTip=Localization.Text(tip),Margin=new Thickness(2),Background=(edge.TextRole??"flow")==role?Ui("HoverBrush"):Brushes.Transparent};
             AutomationProperties.SetName(button,Localization.Text("Text role: ")+Localization.Text(label));button.Click+=(s,e)=>SetTextRole(edge.Id,role);TextRoleChoices.Children.Add(button);
@@ -215,6 +192,7 @@ public partial class MainWindow
     {
         var edge=doc.Edges.FirstOrDefault(e=>e.Id==id);if(edge==null||(edge.TextRole??"flow")==role)return;
         if(role is not ("flow" or "reference"))throw new ArgumentException("Invalid text role");
+        if(role=="reference"&&edge.Direction=="both"){Notify(Localization.Text(GraphFullText.ReferenceDirectionHint));return;}
         Remember();edge.TextRole=role=="flow"?null:role;Changed();
     }
 }

@@ -13,13 +13,15 @@ Papergraph 是一款用于论文写作的本地桌面应用。通过命题及其
 | 平台 | 芯片架构 | 发布版本 | 下载 |
 | --- | --- | --- | --- |
 | Windows | x64 | 正式版 · v0.14.3 | [Windows 正式版](https://github.com/wangyuer1-lang/papergraph/releases/latest) |
-| Windows | x64 | 预览版 · v0.15.0-preview.7 | [Windows 预览版](https://github.com/wangyuer1-lang/papergraph/releases/download/v0.15.0-preview.7/Papergraph-0.15.0-preview.7-windows-x64.zip) |
-| macOS | Apple Silicon（M 系列） | 预览版 · v0.15.0-preview.7 | [macOS M 系列版](https://github.com/wangyuer1-lang/papergraph/releases/download/v0.15.0-preview.7/Papergraph-0.15.0-preview.7-macos-arm64.zip) |
-| macOS | Intel | 预览版 · v0.15.0-preview.7 | [macOS Intel 版](https://github.com/wangyuer1-lang/papergraph/releases/download/v0.15.0-preview.7/Papergraph-0.15.0-preview.7-macos-x64.zip) |
+| Windows | x64 | 预览版 · v0.16.0-preview.8 | [Windows 预览版](https://github.com/wangyuer1-lang/papergraph/releases/download/v0.16.0-preview.8/Papergraph-0.16.0-preview.8-windows-x64.zip) |
+| macOS | Apple Silicon（M 系列） | 预览版 · v0.16.0-preview.8 | [macOS M 系列版](https://github.com/wangyuer1-lang/papergraph/releases/download/v0.16.0-preview.8/Papergraph-0.16.0-preview.8-macos-arm64.zip) |
+| macOS | Intel | 预览版 · v0.16.0-preview.8 | [macOS Intel 版](https://github.com/wangyuer1-lang/papergraph/releases/download/v0.16.0-preview.8/Papergraph-0.16.0-preview.8-macos-x64.zip) |
 
 **Windows：**解压到可写文件夹，运行 `papergraph.exe`。**macOS：**要求 macOS 14 或以上；解压后将 `Papergraph.app` 拖入“应用程序”。所有下载包均已包含 .NET 运行时，无需另行安装。
 
-macOS 预览版使用临时签名（ad-hoc），尚未经过 Apple 公证；Intel 版本尚未进行实机验证。首次打开方法见 [macOS 使用指南](docs/macos.md#download-and-install)，本次更新见[发布说明](https://github.com/wangyuer1-lang/papergraph/releases/tag/v0.15.0-preview.7)。
+macOS 预览版使用临时签名（ad-hoc），尚未经过 Apple 公证；Intel 版本尚未进行实机验证。首次打开方法见 [macOS 使用指南](docs/macos.md#download-and-install)，本次更新见[发布说明](https://github.com/wangyuer1-lang/papergraph/releases/tag/v0.16.0-preview.8)。
+
+**本次只更新 Windows 和 macOS，不包含安卓源码或 APK。**
 
 ![Papergraph 工作流程：编写命题、连接论证、检查证据并与 Agent 协作](docs/quickstart.svg)
 
@@ -37,10 +39,12 @@ macOS 预览版使用临时签名（ad-hoc），尚未经过 Apple 公证；Inte
 ## 主要功能
 
 - **图形编辑：**连接命题，组织方框与圆环，跨图复制内容，排列相互连接的对象，并用颜色标记待审阅内容。
-- **实时全文：**在画布下方查看随编辑更新的正文。有向正文关系（Body）决定阅读顺序；引用关系（Reference）与孤立节点不计入正文。顺序检查提示分叉歧义和循环，点击段落可定位原命题。
+- **实时全文：**可以直接在画布下方编辑全文，改动自动保存到对应命题。有向正文关系（Body）决定阅读顺序；单向引用箭头由引用材料指向正文，引用文字自动放在正文后的括号内，并显示柠檬色背景高亮。重复引用一同更新；自动生成的标点与跨命题修改受到保护。顺序检查提示分叉歧义和循环。
+- **文字颜色：**可为命题中的选中文字设置红、橙、绿、蓝、紫色；引用背景高亮保留原有字体颜色。
+- **手动局域网同步：**两台电脑连接同一网络后输入配对码，比较改动并在双方确认后同步，无需账号或服务器；冲突内容可保留为两个图谱。见[同步说明](docs/usage.md#local-network-sync)。
 - **字数统计：**统计当前正文页或选中文本的词数与字符数，支持中文、日文及混合语言文本。
 - **四页笔记：**将辅助材料与正文分开保存。第一页保留给作者，Agent 使用第二至第四页。
-- **图谱管理：**在侧栏按分类管理图谱，支持自动保存、备份文件及 Markdown 导出。
+- **图谱管理：**在侧栏按分类管理图谱，支持自动保存、备份文件及 Markdown 导出。未分类图谱直接显示在侧栏，不再放入固定的 Unfiled 分类。
 - **界面设置：**支持浅色、深色主题，以及英文、简体中文和日文。在 **View → Language（视图 → 语言）** 中切换，文档内容保持原样；详见[语言支持说明](docs/localization.md)。
 
 ## 快速开始
@@ -49,13 +53,13 @@ macOS 预览版使用临时签名（ad-hoc），尚未经过 Apple 公证；Inte
 2. 双击画布空白处添加命题，选中后在右侧编辑正文与笔记。
 3. 将连接柄拖向另一个对象；选中连线后设置含义、方向与笔记。
 4. 用方框或圆环组织相关命题，通过 **Fit all / F** 查看当前视图中的全部内容。
-5. 打开 **Full text（实时全文）** 审阅正文，点击段落返回对应命题。
+5. 打开 **Full text（实时全文）** 直接编辑正文，修改同步到对应命题。
 
 | 操作 | Windows | macOS |
 | --- | --- | --- |
-| 框选 | 在空白处按住右键拖动 | 在 **Select（选择，V）** 模式下拖动空白处 |
-| 平移 | 在空白处按住左键拖动 | 双指滑动，或使用 **Pan（平移，H）** |
-| 缩放 | 鼠标滚轮 | 双指捏合、Command＋滚动，或 **− / ＋** 按钮 |
+| 框选 | 在空白处按住右键拖动 | Shift＋拖动或右键拖动空白处 |
+| 平移 | 在空白处按住左键拖动 | 左键拖动空白处，或双指滑动 |
+| 缩放 | 鼠标滚轮 | 鼠标滚轮、双指捏合、Command＋滚动或 **− / ＋** |
 | 复制／粘贴 | Ctrl+C / Ctrl+V | Command+C / Command+V |
 | 更多操作 | 右键菜单 | **Actions（操作）**、**···**、辅助点按或 Control＋点按 |
 
@@ -68,6 +72,8 @@ macOS 预览版使用临时签名（ad-hoc），尚未经过 Apple 公证；Inte
 `addNodes` 和 `editGraph` 支持命题、关系、方框及圆环的编辑；其他接口用于管理页面和分类。新建图谱及完整副本默认在后台打开，复制时保留正文、笔记、位置、颜色与连接。
 
 写入需提供目标文档、最新修订号与稳定的请求 UUID。图形编辑批次保存成功后才返回结果，整批操作可一步撤销；过期写入会被拒绝，持久化创建记录可防止重试时重复建页。笔记第一页始终保留给作者。页面创建、切换与画布撤销分别管理。
+
+点击图谱旁的锁可启用 **AI 只读保护**。Agent 可以读取受保护图谱，但无法修改；作者仍可正常编辑。
 
 Windows 与 macOS 均通过仅限当前用户访问的本地命名管道通信。请求格式及命令行示例见 [Agent 接口指南](Agent%20guide.md)。
 

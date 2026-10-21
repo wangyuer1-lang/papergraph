@@ -2,11 +2,11 @@
 
 ## Live full text (v0.14.0)
 
-`{"operation":"fullText"}` returns the read-only live manuscript projection for the active graph. Like `snapshot`, it accepts an optional known `documentPath` to inspect an inactive graph without switching. The response includes document identity/revision and `preview` with `Text`, `Pieces` (point ID, text, preceding separator, frame/circle IDs), `Issues` (code, message, object ID), `ExcludedPoints`, `ReferenceEdges` and `BlockedPoints`. Notes and container descriptions never become manuscript text. Check issues before treating the output as a complete ordered manuscript.
+`{"operation":"fullText"}` returns the read-only live manuscript projection for the active graph. Like `snapshot`, it accepts an optional known `documentPath` to inspect an inactive graph without switching. The response includes document identity/revision and `preview` with `Text`, `Pieces` (point ID, text, preceding separator, frame/circle IDs), `Issues` (code, message, object ID), `ExcludedPoints`, `ReferenceEdges` and `BlockedPoints`. Each piece also exposes `References`, an ordered list of `{NodeId, Text, EdgeId}` for source propositions attached in parentheses. A piece’s `Text` remains its plain body; page/aggregate `Text` includes rendered references. Use the page `Text` to copy the complete manuscript rather than concatenating piece texts. Duplicate source links on one target are collapsed, and references are not recursively expanded. Notes and container descriptions never become manuscript text. Check issues before treating the output as a complete ordered manuscript.
 
 `preview.Pages` contains the separate connected manuscripts, in order of each component's earliest surviving directional Body connection in the document's saved creation order. Each page has `Id` (that connection ID), `Text`, `Pieces`, `Issues`, `ObjectIds`, `EdgeIds`, and `BlockedPoints`. Disconnected Body structures are never joined as one manuscript. The aggregate `Text` uses a form-feed (`\f`) between pages; do not strip it and concatenate unrelated manuscripts. Aggregate `Pieces` and `Issues` span all pages. `GeneralIssues` are graph-wide checks, including bidirectional arrows and ambiguous container continuations. A Body bridge merges pages; reference and bidirectional links do not. A container's Body arrow includes its member manuscript only when the members form one connected component; disconnected member manuscripts remain separate even if the container has external arrows. Framework-only components without participating ordinary points do not create text pages. Viewing these text pages does not create library graphs or alter Notes.
 
-`editGraph` edges additionally accept `textRole: "flow" | "reference"` and `textOrder: 0..9999`. Omitted fields preserve values. `flow` is the backward-compatible default; `reference` is excluded from reading order. Zero means unspecified branch order; positive distinct orders select the order of branches from the same source, subject to directional constraints. Snapshot edges expose both fields. Existing semantic `kind` and `direction` are independent and preserved. Viewing full text performs no graph writes; role/order edits use the usual fresh revision, UUID, save and Undo protections.
+`editGraph` edges additionally accept `textRole: "flow" | "reference"` and `textOrder: 0..9999`. Omitted fields preserve values. `flow` is the backward-compatible default; `reference` is excluded from reading order and attaches the source proposition’s text in parentheses after its arrow target. A reference must use `forward` or `reverse`; edits explicitly setting a bidirectional reference are rejected. Existing legacy bidirectional references remain readable with a diagnostic until corrected. Zero means unspecified branch order; positive distinct orders select the order of branches from the same source, subject to directional constraints. Snapshot edges expose both fields. Existing semantic `kind` and `direction` are independent and preserved. Viewing full text performs no graph writes; role/order edits use the usual fresh revision, UUID, save and Undo protections.
 
 Use the local interface to read and edit graphs, and to list, create, copy and open pages. It needs the desktop app running. It uses a Windows named pipe restricted to the current user; no network service or account is involved.
 
@@ -159,7 +159,7 @@ Use a new UUID for each intentional operation and exactly the same JSON when ret
 
 ## Categories and frame relations (v0.12.13)
 
-The sidebar now has one category level above Graphs. Categories organize library entries; they do not move or modify graph files. Existing pages remain in **Unfiled** (`categoryId: null`). `listGraphs` also returns `libraryRevision`, `categories: [{id,title}]`, and each graph's `categoryId`.
+The sidebar now has one category level above Graphs. Categories organize library entries; they do not move or modify graph files. Unassigned pages appear directly in the sidebar (`categoryId: null`), with no special Unfiled folder. `listGraphs` also returns `libraryRevision`, `categories: [{id,title}]`, and each graph's `categoryId`.
 
 Category mutations require a UUID `requestId` and the fresh `expectedLibraryRevision` from `listGraphs`. They do not require an active-document revision and do not switch pages or change graph contents:
 
@@ -175,13 +175,13 @@ Category mutations require a UUID `requestId` and the fresh `expectedLibraryRevi
 {"operation":"moveGraphs","requestId":"<new UUID>","expectedLibraryRevision":"<fresh library revision>","documentPaths":["C:\\path\\Data\\paper.papergraph"],"categoryId":"<category id>"}
 ```
 
-`moveGraphs` accepts 1–100 library document paths and applies the whole batch atomically. Use `categoryId: null` to return pages to Unfiled. New/copied pages can be classified with this operation after creation. Only use known paths from `listGraphs`.
+`moveGraphs` accepts 1–100 library document paths and applies the whole batch atomically. Use `categoryId: null` to return pages to the sidebar root. New/copied pages can be classified with this operation after creation. Only use known paths from `listGraphs`.
 
 ```json
 {"operation":"removeCategory","requestId":"<new UUID>","expectedLibraryRevision":"<fresh library revision>","categoryId":"<category id>"}
 ```
 
-Removing a category preserves its graphs in Unfiled. Category mutations save atomically; the most recent 256 request receipts persist across restarts. Reuse exactly the same JSON/UUID for retries. A completed retry returns `alreadyApplied: true` and the current library revision, without undoing later moves or recreating a removed category. Different payloads under the same UUID, unknown IDs and stale revisions are rejected. Category changes are separate from canvas Undo; reverse them with a fresh category operation.
+Removing a category preserves its graphs at the sidebar root. Category mutations save atomically; the most recent 256 request receipts persist across restarts. Reuse exactly the same JSON/UUID for retries. A completed retry returns `alreadyApplied: true` and the current library revision, without undoing later moves or recreating a removed category. Different payloads under the same UUID, unknown IDs and stale revisions are rejected. Category changes are separate from canvas Undo; reverse them with a fresh category operation.
 
 Rectangular frames now have independent `caption` (short display title), `body` and `note` fields in `snapshot`, `search` and `editGraph`. For compatibility, existing frame `body` remains untouched; old frames have an empty caption. Do not move or rewrite existing frame text unless asked. Space shows/hides frame captions along with node captions.
 
@@ -209,3 +209,21 @@ Snapshots expose `note` as page 1 and `notePages` as four ordered entries `{page
 Only when the user explicitly requests relocation of legacy agent-written notes may an edit use `moveFirstPage: {expectedBody:"exact current text",targetPage:3}` on the relevant object. First verify provenance and the live content. This guarded operation copies the complete first-page text verbatim to an empty slot 2–4, then clears page 1. It rejects changed source text, occupied destinations, and mixing relocation with other note writes. Use fresh document/revision checks; the batch is saved atomically and supports Undo. This is not permission to relocate user-authored notes or to perform automatic migration across the library.
 
 Frame captions appear above the frame border. Note pages save, search, copy, export and undo with their object.
+
+## AI read-only graphs
+
+Each graph name has a user-controlled open/closed lock button on its left; the graph menu also retains the **AI read-only** toggle. The permission is saved in the graph, survives restart/copy, and is not changed by manuscript Undo/Redo. Manual editing remains available. `snapshot`, `search`, `fullText`, `listGraphs` entries and page results expose `agentReadOnly` and `agentWritable`. A protected graph rejects `addNodes` and `editGraph` before applying any changes, including retries and edits to notes, layout, frames or relations. Read operations, opening graphs and library categorization remain available. Copies inherit the source permission. There is no agent operation to unlock a graph.
+
+Agents must honor this permission: do not use UI automation, direct file writes, another app version, or a copy as a workaround to modify a protected graph. Ask the user to disable AI read-only themselves when edits are needed. This is an application-level guard against accidental agent edits, not an OS security sandbox for processes with filesystem or UI access.
+
+## Selected proposition text colors (macOS)
+
+The proposition editor has a Text color toolbar with five colors and Clear. Select body text before using it. Colors are saved separately from the body and appear in the macOS editor and live full text; copy, full-text strings, character counts and Markdown remain plain text. Typing adjusts ranges, and Undo/Redo restores text with its colors. Frame and ring bodies support the same formatting. Native Windows editors preserve and adjust stored ranges but do not yet render this toolbar or the colors.
+
+`snapshot` nodes and regions expose `bodyColors: [{start, length, color, text}]`. Offsets and lengths use UTF-16 code units, matching C# and JavaScript string indexing, not UTF-8 bytes or Python code points. Ranges must be sorted, non-overlapping, within the exact body, and must not split a surrogate pair. Colors use `#RRGGBB`.
+
+For user-authorized formatting, `editGraph` node/region entries may include `bodyColors`. Supplying this field replaces the entire range list; omit it to preserve existing formatting, or send `[]` to clear it. Read and merge existing ranges before a partial formatting change. The optional `text` in each input range must match the selected substring exactly or the whole batch fails. Changing `body` without supplying colors automatically adjusts existing ranges. All graph AI-protection, revision, persistence and Undo rules apply to formatting.
+
+```json
+{"id":"existing-point","bodyColors":[{"start":0,"length":4,"color":"#D44747","text":"重复表达"}]}
+```

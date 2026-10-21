@@ -1,4 +1,4 @@
-<Styles xmlns="https://github.com/avaloniaui" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" xmlns:conv="using:Avalonia.Controls.Converters">
+<Styles xmlns="https://github.com/avaloniaui" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" xmlns:conv="using:Avalonia.Controls.Converters" xmlns:local="using:Papergraph">
   <Style Selector="Window">
     <Setter Property="FontSize" Value="14"/><Setter Property="Foreground" Value="{DynamicResource TextBrush}"/><Setter Property="Background" Value="{DynamicResource CanvasBrush}"/>
   </Style>
@@ -72,4 +72,14 @@
   </Style>
   <Style Selector="TabStripItem:selected"><Setter Property="Foreground" Value="{DynamicResource TextBrush}"/></Style>
   <Style Selector="TabStripItem:selected /template/ Border#Underline"><Setter Property="BorderBrush" Value="{DynamicResource TextBrush}"/></Style>
+  <Style Selector="TextBox.proposition-colors">
+    <Setter Property="Template"><ControlTemplate><Border Name="PART_BorderElement" Background="{TemplateBinding Background}" Padding="{TemplateBinding Padding}">
+      <ScrollViewer Name="PART_ScrollViewer" HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto" IsScrollChainingEnabled="True">
+        <local:BodyTextPresenter Name="PART_TextPresenter" Text="{TemplateBinding Text, Mode=TwoWay}" CaretIndex="{TemplateBinding CaretIndex}" CaretBlinkInterval="{TemplateBinding CaretBlinkInterval}"
+          SelectionStart="{TemplateBinding SelectionStart}" SelectionEnd="{TemplateBinding SelectionEnd}" TextAlignment="{TemplateBinding TextAlignment}" TextWrapping="{TemplateBinding TextWrapping}"
+          LineHeight="{TemplateBinding LineHeight}" LetterSpacing="{TemplateBinding LetterSpacing}" SelectionBrush="{TemplateBinding SelectionBrush}" SelectionForegroundBrush="{TemplateBinding SelectionForegroundBrush}" CaretBrush="{TemplateBinding CaretBrush}"
+          HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}" VerticalAlignment="{TemplateBinding VerticalContentAlignment}"/>
+      </ScrollViewer>
+    </Border></ControlTemplate></Setter>
+  </Style>
 </Styles>

@@ -15,12 +15,12 @@ public static class CaptionTests
         var doc=new GraphDocument{Nodes=[new(){Id="a",X=75,Y=140,Title="Full proposition",Note="Supporting notes"},new(){Id="b",X=395,Y=140,Title="Another proposition"}],Edges=[new(){Id="edge",From="a",To="b",Note="Relation notes"}]};
         Storage.Save(file,doc);File.WriteAllText(Path.Combine(directory,"recent.txt"),"titles.papergraph");
         var window=new MainWindow(directory);var graph=window.Graph;
-        Check(!graph.ShowCaptions,"Titles start hidden so the first Space shows them");var untouched=graph.Document.Serialize();
-        Check(window.RouteTitleToggle(Key.Space,ModifierKeys.None,graph)&&graph.ShowCaptions,"One Space shows all titles");
-        window.RouteTitleToggle(Key.Space,ModifierKeys.None,graph,true);Check(graph.ShowCaptions,"Holding Space does not toggle repeatedly");
-        foreach(var editor in new[]{window.CaptionBox,window.PropositionBox,window.NotesBox,window.DocumentTitleBox})Check(!window.RouteTitleToggle(Key.Space,ModifierKeys.None,editor),"Space remains ordinary text in all editors");
-        Check(!window.RouteTitleToggle(Key.Space,ModifierKeys.None,new MenuItem())&&!window.RouteTitleToggle(Key.Space,ModifierKeys.Control,graph),"Menus and modified chords are not intercepted");
-        window.RouteTitleToggle(Key.Space,ModifierKeys.None,graph);Check(!graph.ShowCaptions&&graph.Document.Serialize()==untouched,"Second Space hides titles without changing the document");
+        Check(!graph.ShowCaptions,"Titles start hidden so the first Shift+Space shows them");var untouched=graph.Document.Serialize();
+        Check(window.RouteTitleToggle(Key.Space,ModifierKeys.Shift,graph)&&graph.ShowCaptions,"One Shift+Space shows all titles");
+        window.RouteTitleToggle(Key.Space,ModifierKeys.Shift,graph,true);Check(graph.ShowCaptions,"Holding Space does not toggle repeatedly");
+        foreach(var editor in new System.Windows.Controls.Primitives.TextBoxBase[]{window.CaptionBox,window.PropositionBox,window.NotesBox,window.DocumentTitleBox})Check(!window.RouteTitleToggle(Key.Space,ModifierKeys.Shift,editor),"Space remains ordinary text in all editors");
+        Check(!window.RouteTitleToggle(Key.Space,ModifierKeys.Shift,new MenuItem())&&!window.RouteTitleToggle(Key.Space,ModifierKeys.Control,graph),"Menus and modified chords are not intercepted");
+        window.RouteTitleToggle(Key.Space,ModifierKeys.Shift,graph);Check(!graph.ShowCaptions&&graph.Document.Serialize()==untouched,"Second Shift+Space hides titles without changing the document");
         void Select(string id){graph.ClearAllSelection();if(graph.Document.Node(id)!=null)graph.Selected=[id];else graph.SelectedEdge=id;window.SelectionChanged();}
         void Action(string name)=>window.EditMenu.Items.OfType<MenuItem>().Single(m=>(string)m.Header==name).RaiseEvent(new RoutedEventArgs(MenuItem.ClickEvent));
         Select("a");var original=graph.Document.Node("a")!;var radius=GraphStyle.Radius(original);var center=GraphStyle.Center(original);

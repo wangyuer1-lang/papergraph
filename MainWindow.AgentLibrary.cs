@@ -30,7 +30,7 @@ public partial class MainWindow
             try
             {
                 var document=active?doc:GraphDocument.Parse(File.ReadAllText(entry.Path));
-                entries.Add(new{documentPath=entry.Path,categoryId=catalog.Assignments.GetValueOrDefault(entry.Path),title=document.Title,isActive=active,available=true,
+                entries.Add(new{documentPath=entry.Path,categoryId=catalog.Assignments.GetValueOrDefault(entry.Path),title=document.Title,isActive=active,available=true,agentReadOnly=document.AgentReadOnly,agentWritable=!document.AgentReadOnly,
                     revision=AgentProtocol.Revision(document),nodeCount=document.Nodes.Count,edgeCount=document.Edges.Count,regionCount=document.Regions.Count});
             }
             catch(Exception ex) when(ex is IOException or UnauthorizedAccessException or JsonException or InvalidDataException)
@@ -55,14 +55,14 @@ public partial class MainWindow
 
     void AgentTrackPage(string path,GraphDocument document)
     {
-        if(!library.Any(e=>SamePath(e.Path,path)))library.Add(new(Path.GetFullPath(path),DisplayTitle(document.Title)));
+        if(!library.Any(e=>SamePath(e.Path,path)))library.Add(new(Path.GetFullPath(path),DisplayTitle(document.Title),document.AgentReadOnly));
         TrackCurrentGraph();
     }
 
     object AgentPageResult(string path,string requestId,bool alreadyApplied)
     {
         bool active=SamePath(path,file);var document=active?doc:GraphDocument.Parse(File.ReadAllText(path));
-        return new{ok=true,requestId,alreadyApplied,documentPath=Path.GetFullPath(path),revision=AgentProtocol.Revision(document),title=document.Title,isActive=active,
+        return new{ok=true,requestId,alreadyApplied,documentPath=Path.GetFullPath(path),revision=AgentProtocol.Revision(document),title=document.Title,isActive=active,agentReadOnly=document.AgentReadOnly,agentWritable=!document.AgentReadOnly,
             activeDocumentPath=Path.GetFullPath(file),activeRevision=AgentProtocol.Revision(doc)};
     }
 

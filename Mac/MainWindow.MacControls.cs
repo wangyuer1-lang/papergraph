@@ -8,15 +8,17 @@ using P=System.Windows.Point;
 namespace Papergraph;
 public partial class MainWindow
 {
-    Button canvasSelectButton=null!,canvasPanButton=null!,canvasActionsButton=null!,libraryActionsButton=null!;
+    Button canvasSelectButton=null!,canvasActionsButton=null!,libraryActionsButton=null!;
+    Func<ulong,bool> isGestureScroll=MacScrollInput.IsGesture;
     readonly TextBlock canvasHint=new(){FontSize=11,Margin=new(8,2,8,5),TextTrimming=TextTrimming.CharacterEllipsis};
     void BuildMacControls()
     {
         graphArea.RowDefinitions=new("Auto,*");Grid.SetRow(Graph,1);
         var bar=new WrapPanel{Orientation=Orientation.Horizontal,Margin=new(5,3)};
-        canvasSelectButton=Button("Select",()=>SetCanvasTool(false));Tip(canvasSelectButton,"Drag empty canvas to select · V");
-        canvasPanButton=Button("Pan",()=>SetCanvasTool(true));Tip(canvasPanButton,"Drag to move the canvas · H · or hold Space");
-        bar.Children.Add(canvasSelectButton);bar.Children.Add(canvasPanButton);
+        canvasSelectButton=Button("Select",()=>SetCanvasTool(false));Tip(canvasSelectButton,"Drag empty canvas to pan · Shift-drag to select · V");
+        // Only show an exit from persistent Pan mode. Normal canvas navigation
+        // is available through gestures, Space-drag and the View menu.
+        bar.Children.Add(canvasSelectButton);
         var minus=GlyphButton("−","Zoom out · ⌘−",()=>ZoomCanvas(1/1.2),30,14);bar.Children.Add(minus);
         var reset=Button("",()=>ZoomCanvas(1/Graph.Zoom));zoomLabel.FontSize=11;zoomLabel.Text="100%";reset.Content=zoomLabel;reset.Width=58;Tip(reset,"Reset zoom to 100%");bar.Children.Add(reset);
         var plus=GlyphButton("+","Zoom in · ⌘+",()=>ZoomCanvas(1.2),30,14);bar.Children.Add(plus);
@@ -34,9 +36,8 @@ public partial class MainWindow
     void UpdateMacControls()
     {
         if(canvasSelectButton==null)return;
-        canvasSelectButton.Classes.Set("selected",!Graph.MacPanTool&&!Graph.MacSpacePan);
-        canvasPanButton.Classes.Set("selected",Graph.MacPanTool||Graph.MacSpacePan);
-        var hint=Graph.MacPanTool||Graph.MacSpacePan?"Drag to pan · pinch to zoom · V to select":Graph.SelectedRegion!=null?"Drag the frame border to move · drag its lower-right corner to resize":Graph.GroupSelection?"Drag the selection to move · use the buttons below to group or delete":"Drag empty canvas to select · two-finger scroll to pan · pinch to zoom";
+        canvasSelectButton.IsVisible=Graph.MacPanTool;
+        var hint=Graph.MacPanTool||Graph.MacSpacePan?"Drag to pan · wheel or pinch to zoom · V to select":Graph.SelectedRegion!=null?"Drag the frame border to move · drag its lower-right corner to resize":Graph.GroupSelection?"Drag the selection to move · use the buttons below to group or delete":"Drag empty canvas to pan · Shift-drag to select · wheel or pinch to zoom";
         canvasHint.Text=T(hint);ToolTip.SetTip(canvasHint,T(hint));
         if(!Graph.IsInteracting&&!Graph.DrawingRegion&&!Graph.LinkMode)Graph.Cursor=new(Graph.MacPanTool||Graph.MacSpacePan?StandardCursorType.SizeAll:StandardCursorType.Arrow);
     }
@@ -49,8 +50,9 @@ public partial class MainWindow
     void CanvasScroll(object? sender,PointerWheelEventArgs e)
     {
         if(!CanvasContains(e,out var p))return;
-        if((e.KeyModifiers&(KeyModifiers.Meta|KeyModifiers.Control))!=0)Graph.MacZoomAt(Math.Exp(e.Delta.Y*.162),p);
-        else Graph.MacPanBy(new System.Windows.Vector(e.Delta.X*50,e.Delta.Y*50));
+        if((e.KeyModifiers&(KeyModifiers.Meta|KeyModifiers.Control))==0&&isGestureScroll(e.Timestamp))
+            Graph.MacPanBy(new System.Windows.Vector(e.Delta.X*50,e.Delta.Y*50));
+        else Graph.MacZoomAt(Math.Exp(e.Delta.Y*.162),p);
         e.Handled=true;
     }
     void CanvasMagnify(object? sender,PointerDeltaEventArgs e)

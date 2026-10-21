@@ -31,11 +31,12 @@ public partial class MainWindow:Window
     internal readonly GraphSurface Graph=new();
     readonly TreeView libraryTree=new();
     readonly ObservableCollection<GraphCategory> categoryRows=[];
+    readonly ObservableCollection<LibraryRow> libraryRows=[];
     readonly HashSet<string> collapsedCategories=[];
     readonly Dictionary<string,int> noteSelections=[];
     readonly TextBox documentTitle=new(){FontSize=18,FontWeight=FontWeight.SemiBold,BorderThickness=new Thickness(0),MinWidth=160};
     readonly TextBox captionBox=new(){Watermark="Short title",AcceptsReturn=true,TextWrapping=TextWrapping.Wrap};
-    readonly TextBox bodyBox=new(){AcceptsReturn=true,TextWrapping=TextWrapping.Wrap,MinHeight=180};
+    readonly BodyTextBox bodyBox=new(){AcceptsReturn=true,TextWrapping=TextWrapping.Wrap,MinHeight=180};
     readonly TextBox notesBox=new(){AcceptsReturn=true,TextWrapping=TextWrapping.Wrap,MinHeight=180};
 
     readonly TabStrip notePages=new(){ItemsSource=new[]{"1","2","3","4"},SelectedIndex=0};
@@ -65,7 +66,7 @@ public partial class MainWindow:Window
     {
         dataDir=directory;SaveDot=new(this);Directory.CreateDirectory(directory);
         Width=1380;Height=880;MinWidth=800;MinHeight=540;Title="papergraph";Icon=MacApplicationIcon.WindowIcon();WindowStartupLocation=WindowStartupLocation.CenterScreen;
-        LoadSettings();LoadInitial();dirty|=GraphGroups.ExpandLegacy(doc);dirty|=doc.MaterializeRegions();LoadLibrary();InitializePalette();BuildUi();ApplyTheme();InitializeInteraction();
+        LanSyncStore.Recover(dataDir);LoadSettings();LoadInitial();dirty|=GraphGroups.ExpandLegacy(doc);dirty|=doc.MaterializeRegions();LoadLibrary();InitializePalette();BuildUi();ApplyTheme();InitializeInteraction();
         Graph.Document=doc;
         Graph.SelectionChanged+=SelectionChanged;Graph.BeforeChange+=Remember;Graph.Changed+=()=>Changed();
         Graph.LayoutFinished+=()=>Changed(false);Graph.LayoutFailed+=m=>Notify(m);Graph.LayoutNotice+=m=>Notify(m);
@@ -137,16 +138,16 @@ public partial class MainWindow:Window
     {
         var paths=Directory.EnumerateFiles(dataDir).Where(p=>p.EndsWith(".papergraph",StringComparison.OrdinalIgnoreCase)||p.EndsWith(".yujian",StringComparison.OrdinalIgnoreCase)).ToList();
         try{paths.AddRange(JsonSerializer.Deserialize<string[]>(File.ReadAllText(Path.Combine(dataDir,"graphs.json")))??[]);}catch{}
-        foreach(var path in paths.Distinct())try{if(File.Exists(path)&&!SamePath(path,file)){var saved=GraphDocument.Parse(File.ReadAllText(path));library.Add(new(Path.GetFullPath(path),DisplayTitle(saved.Title)));}}catch{}
-        library.Insert(0,new(file,DisplayTitle(doc.Title)));
+        foreach(var path in paths.Distinct())try{if(File.Exists(path)&&!SamePath(path,file)){var saved=GraphDocument.Parse(File.ReadAllText(path));library.Add(new(Path.GetFullPath(path),DisplayTitle(saved.Title),saved.AgentReadOnly));}}catch{}
+        library.Insert(0,new(file,DisplayTitle(doc.Title),doc.AgentReadOnly));
         try{if(File.Exists(CatalogPath))catalog=GraphLibraryCatalog.Parse(File.ReadAllText(CatalogPath));}catch(Exception ex){Notify("Could not load categories: "+ex.Message);}
     }
     void TrackCurrentGraph()
     {
-        var entry=library.FirstOrDefault(e=>SamePath(e.Path,file));if(entry==null)library.Add(new(file,DisplayTitle(doc.Title)));else entry.Title=DisplayTitle(doc.Title);
+        var entry=library.FirstOrDefault(e=>SamePath(e.Path,file));if(entry==null)library.Add(new(file,DisplayTitle(doc.Title),doc.AgentReadOnly));else {entry.Title=DisplayTitle(doc.Title);entry.AgentReadOnly=doc.AgentReadOnly;}
         File.WriteAllText(Path.Combine(dataDir,"graphs.json"),JsonSerializer.Serialize(library.Select(e=>e.Path).ToArray()));RefreshLibraryTree();
     }
-    void UpdateLibraryTitle(){var entry=library.FirstOrDefault(e=>SamePath(e.Path,file));if(entry!=null)entry.Title=DisplayTitle(doc.Title);Title=DisplayTitle(doc.Title)+" — papergraph";}
+    void UpdateLibraryTitle(){var entry=library.FirstOrDefault(e=>SamePath(e.Path,file));if(entry!=null){entry.Title=DisplayTitle(doc.Title);entry.AgentReadOnly=doc.AgentReadOnly;}Title=DisplayTitle(doc.Title)+" — papergraph";}
     void Remember()=>RecordUndo(true);
     void RecordUndo(bool cancelLayout){if(cancelLayout)Graph.CancelLayout();undo.Push((doc.Serialize(),Graph.Scope,Graph.BoardRegion));redo.Clear();editKey="";}
     void RememberEdit(string key){if(editKey!=key||(DateTime.UtcNow-editAt).TotalSeconds>2){RecordUndo(false);editKey=key;}editAt=DateTime.UtcNow;}
@@ -166,7 +167,7 @@ public partial class MainWindow:Window
     void RefreshAll(){updating=true;documentTitle.Text=doc.Title;updating=false;Graph.Document=doc;UpdateLibraryTitle();SelectionChanged();RefreshLibraryTree();RefreshFullText(true);}
     void Undo(){if(undo.Count==0)return;redo.Push((doc.Serialize(),Graph.Scope,Graph.BoardRegion));Restore(undo.Pop());}
     void Redo(){if(redo.Count==0)return;undo.Push((doc.Serialize(),Graph.Scope,Graph.BoardRegion));Restore(redo.Pop());}
-    void Restore((string Json,string? Scope,string? Region) state){doc=GraphDocument.Parse(state.Json);Graph.Document=doc;Graph.SetBoard(state.Scope,state.Region);Graph.ClearAllSelection();editorId=null;editKey="";RefreshAll();Changed();}
+    void Restore((string Json,string? Scope,string? Region) state){var agentReadOnly=doc.AgentReadOnly;doc=GraphDocument.Parse(state.Json);doc.AgentReadOnly=agentReadOnly;Graph.Document=doc;Graph.SetBoard(state.Scope,state.Region);Graph.ClearAllSelection();editorId=null;editKey="";RefreshAll();Changed();}
     void ResetDocument(GraphDocument next,string path,bool modified)
     {
         saveTimer.Stop();doc=next;file=Path.GetFullPath(path);dirty=modified;dirty|=GraphGroups.ExpandLegacy(doc);dirty|=doc.MaterializeRegions();undo.Clear();redo.Clear();boards.Clear();Graph.ClearAllSelection();Graph.SetBoard(null,null);editorId=null;fullTextPage=0;RefreshAll();TrackCurrentGraph();Graph.Fit(false);if(dirty)saveTimer.Start();WriteRecent();
@@ -185,11 +186,9 @@ public partial class MainWindow:Window
         else if(Graph.SelectedRegion!=null&&Graph.SelectionCount==1){editorId=Graph.SelectedRegion;editorKind="region";}
         else if(Graph.SelectionCount==0&&Graph.SelectedEdge!=null){editorId=Graph.SelectedEdge;editorKind="edge";}
         var item=SelectedObject();bool open=item!=null;emptyEditor.IsVisible=!open;notesPanel.IsVisible=moreButton.IsVisible=captionPanel.IsVisible=open;
-        // Hide the entire relation viewport so its empty presenter cannot
-        // intercept clicks on the proposition editor beneath it.
-        bodyBox.IsVisible=open&&editorKind!="edge";edgeScroll.IsVisible=edgePanel.IsVisible=editorKind=="edge";linkButton.IsVisible=open&&editorKind!="edge";colorButton.IsVisible=editorKind is "node" or "edge";editorSymbol.IsVisible=editorKind=="region";
+        bodyBox.IsVisible=open&&editorKind!="edge";edgePanel.IsVisible=editorKind=="edge";linkButton.IsVisible=open&&editorKind!="edge";colorButton.IsVisible=editorKind is "node" or "edge";editorSymbol.IsVisible=editorKind=="region";
         heading.Text=item is Proposition {Kind:"circle"}?"":T(editorKind switch{"node"=>"Proposition","edge"=>"Relation","region"=>"Frame",_=>""});
-        {SetEditorText(captionBox,item switch{Proposition n=>n.Caption,Relation e=>e.Caption,Region r=>r.Caption,_=>""});SetEditorText(bodyBox,item switch{Proposition n=>n.Title,Region r=>r.Title,_=>""});}
+        {SetEditorText(captionBox,item switch{Proposition n=>n.Caption,Relation e=>e.Caption,Region r=>r.Caption,_=>""});SetEditorText(bodyBox,item switch{Proposition n=>n.Title,Region r=>r.Title,_=>""});bodyBox.SetColors((item as IGraphBody)?.BodyColors);UpdateTextColorToolbar();}
         if(item is Relation edge){nodeGlyph.Kind="point";nodeGlyph.Stroke=new SolidColorBrush(GraphMarkColors.Edge(edge,dark));BuildArrowChoices(edge);}
         if(item is Proposition node){nodeGlyph.Kind=node.Kind;nodeGlyph.Stroke=new SolidColorBrush(GraphMarkColors.Node(doc,node,dark));}nodeGlyph.InvalidateVisual();
         multiBar.IsVisible=Graph.GroupSelection;frameButton.IsEnabled=FrameCreationBounds()!=null;circleButton.IsEnabled=GraphGroups.CanGroup(doc,Graph.Selected);deleteButton.IsEnabled=Graph.SelectionCount>0;
@@ -201,6 +200,7 @@ public partial class MainWindow:Window
     {
         if(updating||editorId==null)return;var item=SelectedObject();if(item==null)return;RememberEdit(field+editorId);
         switch(item){case Proposition n:if(field=="caption")n.Caption=value;else n.Title=value;break;case Region r:if(field=="caption")r.Caption=value;else r.Title=value;break;case Relation e:if(field=="caption")e.Caption=value;break;}
+        if(field=="body")bodyBox.SetColors((item as IGraphBody)?.BodyColors);
         Changed(false);
     }
     string NoteSelectionKey=>file+"|"+editorKind+"|"+editorId;

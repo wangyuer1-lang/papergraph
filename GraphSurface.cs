@@ -506,6 +506,8 @@ public sealed partial class GraphSurface : FrameworkElement
         if(e.ChangedButton!=MouseButton.Left)return;
 #if CROSS_PLATFORM
         if(TryBeginMacPan(e))return;
+#else
+        if(TryBeginWindowsPan(e))return;
 #endif
         if(DrawingRegion){drawingBox=true;selectionRect=new Rect(world,world);CaptureMouse();e.Handled=true;return;}
         var hit=HitNode(world);var frame=HitRegion(world);var multi=(Keyboard.Modifiers&(ModifierKeys.Shift|ModifierKeys.Control))!=0;
@@ -525,12 +527,15 @@ public sealed partial class GraphSurface : FrameworkElement
         if(e.ClickCount==2){frame??=regions.Where(r=>RegionBounds(r).Contains(world)).OrderBy(r=>r.Width*r.Height).FirstOrDefault();if(frame!=null){EnterRegion?.Invoke(frame.Id);e.Handled=true;return;}}
 #if CROSS_PLATFORM
         if(TryBeginMacFrameDrag(e,world,frame,multi))return;
+#else
+        if(TryBeginWindowsFrameDrag(e,world,frame,multi))return;
 #endif
         if(frame!=null){if(multi){if(!SelectedRegions.Add(frame.Id))SelectedRegions.Remove(frame.Id);SelectionBox=null;}else{Selected.Clear();SelectedRegion=frame.Id;}SelectedEdge=null;AnnounceSelection();e.Handled=true;return;}
         if(HitEdge(world) is EdgePath edge){Selected.Clear();SelectedRegion=null;SelectedEdge=edge.Edge.Id;AnnounceSelection();e.Handled=true;return;}
         if(e.ClickCount==2){CreateNode?.Invoke(world);e.Handled=true;return;}
 #if CROSS_PLATFORM
-        macPrimaryBox=true;BeginBoxSelection(world,multi);
+        macPrimaryBox=multi;
+        if(macPrimaryBox)BeginBoxSelection(world,true);else panning=true;
 #else
         if((Keyboard.Modifiers&ModifierKeys.Shift)!=0)BeginBoxSelection(world,(Keyboard.Modifiers&ModifierKeys.Control)!=0);else panning=true;
 #endif
@@ -574,6 +579,8 @@ public sealed partial class GraphSurface : FrameworkElement
         last=current;
 #if CROSS_PLATFORM
         UpdateMacPointerCursor(world);
+#else
+        UpdateWindowsPointerCursor(world);
 #endif
     }
     protected override void OnMouseLeave(MouseEventArgs e){base.OnMouseLeave(e);if(!IsMouseCaptured){hoverId=hoverEdge=null;InvalidateVisual();}}
@@ -598,13 +605,16 @@ public sealed partial class GraphSurface : FrameworkElement
 #if CROSS_PLATFORM
         else if(emptyPrimaryClick||panning&&!moved&&e.ChangedButton==MouseButton.Left&&!keepPanSelection){ClearAllSelection();LinkStart=null;AnnounceSelection();}
 #else
-        else if(panning&&!moved&&e.ChangedButton==MouseButton.Left){ClearAllSelection();LinkStart=null;AnnounceSelection();}
+        else if(panning&&!moved&&e.ChangedButton==MouseButton.Left&&!windowsPanGesture){ClearAllSelection();LinkStart=null;AnnounceSelection();}
+        windowsPanGesture=false;
 #endif
         dragging=panning=lasso=rightGesture=resizingRegion=false;movingRegion=null;regionMove=null;EndSelectionMove();selectionRect=null;ReleaseMouseCapture();Cursor=GroupSelection?Cursors.SizeAll:Cursors.Arrow;if(changed)Changed?.Invoke();if(created is Rect box)CreateRegion?.Invoke(box);if(boxCompleted&&selectedBox is Rect selection)BoxSelectionCompleted?.Invoke(selection);else if(context)ContextRequested?.Invoke();InvalidateVisual();
     }
     protected override void OnLostMouseCapture(MouseEventArgs e){base.OnLostMouseCapture(e);var changed=dragging&&moved&&(movingRegion!=null||selectionMove?.Count>0);dragging=panning=lasso=linkDragging=rightGesture=drawingBox=resizingRegion=false;movingRegion=null;regionMove=null;selectionMove=null;selectionRect=null;LinkStart=linkTarget=null;
 #if CROSS_PLATFORM
         macPrimaryBox=macPanGesture=false;
+#else
+        windowsPanGesture=false;
 #endif
         if(changed)Changed?.Invoke();InvalidateVisual();}
     protected override void OnMouseWheel(MouseWheelEventArgs e){if(!IsPreview)ZoomBy(Math.Exp(e.Delta*.00135),e.GetPosition(this));e.Handled=true;}

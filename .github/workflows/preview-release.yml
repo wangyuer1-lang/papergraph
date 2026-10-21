@@ -28,7 +28,7 @@ jobs:
       - uses: actions/download-artifact@v4
         with:
           pattern: Papergraph-*-preview
-          path: build-artifacts
+          path: release-assets
           merge-multiple: true
       - name: Publish the tested preview
         env:
@@ -40,23 +40,20 @@ jobs:
           windows_version=$(python3 -c 'import xml.etree.ElementTree as E; print(E.parse("Papergraph.csproj").findtext("PropertyGroup/Version"))')
           [[ "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+-preview\.[0-9]+$ ]]
           [[ "$windows_version" == "$version" ]]
-          # upload-artifact preserves macOS architecture subdirectories.
-          # Stage exactly one nonempty ZIP per platform at the release root.
-          python3 - "$version" <<'PY_STAGE'
-          import pathlib, shutil, sys
-          version = sys.argv[1]
-          source = pathlib.Path("build-artifacts")
-          target = pathlib.Path("release-assets")
-          target.mkdir()
-          for platform in ("macos-arm64", "macos-x64", "windows-x64"):
-              name = f"Papergraph-{version}-{platform}.zip"
-              matches = list(source.rglob(name))
-              if len(matches) != 1 or not matches[0].is_file() or matches[0].stat().st_size == 0:
-                  sys.exit(f"Expected one nonempty {name}; found: {matches}")
-              shutil.copy2(matches[0], target / name)
-              print(f"Staged {matches[0]} -> {target / name}")
-          PY_STAGE
-          (cd release-assets && sha256sum *.zip > SHA256SUMS.txt)
+          mkdir -p release-packages
+          for platform in macos-arm64 macos-x64 windows-x64; do
+            name="Papergraph-$version-$platform.zip"
+            mapfile -d '' matches < <(find release-assets -type f -name "$name" -print0)
+            if [[ "${#matches[@]}" -ne 1 ]]; then
+              echo "Expected one $name; found ${#matches[@]}"
+              find release-assets -type f
+              exit 1
+            fi
+            test -s "${matches[0]}"
+            cp "${matches[0]}" "release-packages/$name"
+          done
+          test "$(find release-packages -maxdepth 1 -name '*.zip' | wc -l)" -eq 3
+          (cd release-packages && sha256sum *.zip > SHA256SUMS.txt)
           tag="v$version"
           notes="docs/releases/$tag.md"
           test -f "$notes"
@@ -65,7 +62,7 @@ jobs:
             echo "Release $tag already exists; inspect it before rerunning."
             exit 1
           fi
-          gh release create "$tag" release-assets/*.zip release-assets/SHA256SUMS.txt \
-            --target "$GITHUB_SHA" --title "papergraph $version — macOS preview" \
+          gh release create "$tag" release-packages/*.zip release-packages/SHA256SUMS.txt \
+            --target "$GITHUB_SHA" --title "papergraph $version — desktop preview" \
             --notes-file "$notes" --prerelease --draft --latest=false
           gh release edit "$tag" --draft=false --prerelease --latest=false

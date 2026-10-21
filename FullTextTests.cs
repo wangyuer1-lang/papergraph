@@ -20,9 +20,9 @@ public static class FullTextTests
         var doc=new GraphDocument{Nodes=[N("a","甲。"),N("b","乙。"),N("isolate","不进入正文"),N("ref","参考材料")],Edges=[E("a","b"),E("ref","b",role:"reference")]};
         doc.Nodes[0].Note="私人 Notes";
         var saved=doc.Serialize();var r=GraphFullText.Build(doc);
-        Check(r.Text=="甲。乙。"&&Ids(r)=="a,b"&&r.ExcludedPoints==2&&r.ReferenceEdges==1,"Only directed body links include point text; notes and reference-only endpoints stay out");
+        Check(r.Text=="甲。乙。（参考材料）"&&Ids(r)=="a,b"&&r.ExcludedPoints==1&&r.ReferenceEdges==1,"Body links order propositions; references follow their target in parentheses and notes stay out");
         Check(doc.Serialize()==saved,"Projection never modifies its input");
-        doc.Edges[0].Direction="reverse";Check(GraphFullText.Build(doc).Text=="乙。甲。","Reverse arrows reverse reading order");
+        doc.Edges[0].Direction="reverse";Check(GraphFullText.Build(doc).Text=="乙。（参考材料）甲。","Reverse arrows reverse reading order");
         doc.Edges[0].Direction="both";r=GraphFullText.Build(doc);Check(r.Text==""&&r.Issues.Any(i=>i.Code=="bidirectional"),"Both-headed arrows are unresolved, never arbitrarily directed");
         doc=new(){Nodes=[N("a"),N("b"),N("c"),N("d")],Edges=[E("a","b",order:2),E("a","c",order:1),E("b","d"),E("c","d")]};
         r=GraphFullText.Build(doc);Check(Ids(r)=="a,c,b,d"&&!r.Issues.Any(i=>i.Code=="branch"),"Ordered branches finish before one shared join");
@@ -54,7 +54,7 @@ public static class FullTextTests
         TestPages();
         TestLiveWindow();
         TestPageWindow();
-        File.AppendAllText(Path.Combine(AppContext.BaseDirectory,"test-results.txt"),"PASS: live full text, forward/reverse, citation exclusion, isolated points, circles, nested/overlapping frames, branch ordering and merge deduplication, cycle/bidirectional diagnostics, source navigation, undo/redo, persistence and clipboard.\n");
+        File.AppendAllText(Path.Combine(AppContext.BaseDirectory,"test-results.txt"),"PASS: live full text, forward/reverse, parenthetical citations, isolated points, circles, nested/overlapping frames, branch ordering and merge deduplication, cycle/bidirectional diagnostics, source navigation, undo/redo, persistence and clipboard.\n");
     }
     static void TestStatistics()
     {
@@ -70,12 +70,12 @@ public static class FullTextTests
         var doc=new GraphDocument{Nodes=[N("a",x:50,y:50),N("b",x:150,y:50),N("c",x:50,y:250),N("d",x:150,y:250),N("isolate",x:250,y:250)],
             Edges=[E("c","d"),E("a","b"),E("b","c",role:"reference")],Regions=[F("shared",0,0)]};
         var saved=doc.Serialize();var r=GraphFullText.Build(doc);
-        Check(r.Pages.Count==2&&r.Pages[0].Text=="c d"&&r.Pages[1].Text=="a b","Disconnected chains get separate pages ordered by their first Body edge, not position or node creation");
-        Check(r.Text=="c d\fa b"&&r.ExcludedPoints==1&&!r.Issues.Any(i=>i.Code=="multiple-starts"),"A shared frame and reference link do not concatenate pages or include isolated points");
+        Check(r.Pages.Count==2&&r.Pages[0].Text=="c (b) d"&&r.Pages[1].Text=="a b","Disconnected chains get separate pages ordered by their first Body edge, not position or node creation");
+        Check(r.Text=="c (b) d\fa b"&&r.ExcludedPoints==1&&!r.Issues.Any(i=>i.Code=="multiple-starts"),"A shared frame and reference link do not concatenate pages or include isolated points");
         Check(doc.Serialize()==saved,"Pagination does not create or modify graph objects");
         doc.Regions.Add(F("empty-next",0,800));doc.Edges.Add(E("shared","empty-next"));
         r=GraphFullText.Build(doc);
-        Check(r.Pages.Count==2&&r.Pages[0].Text=="c d"&&r.Pages[1].Text=="a b","External frame arrows and empty framework sections do not merge two disconnected manuscripts inside one frame or create blank pages");
+        Check(r.Pages.Count==2&&r.Pages[0].Text=="c (b) d"&&r.Pages[1].Text=="a b","External frame arrows and empty framework sections do not merge two disconnected manuscripts inside one frame or create blank pages");
         doc.Node("a")!.Y=350;doc.Node("c")!.Y=0;
         Check(GraphFullText.Build(doc).Pages.Select(p=>p.Id).SequenceEqual(r.Pages.Select(p=>p.Id)),"Moving structures does not reorder pages");
         doc.Edges.Add(new(){Id="both",From="a",To="c",Direction="both"});
@@ -117,25 +117,28 @@ public static class FullTextTests
         var directory=Path.Combine(Path.GetTempPath(),"papergraph-full-text-"+Guid.NewGuid().ToString("N"));Directory.CreateDirectory(directory);
         var path=Path.Combine(directory,"sample.papergraph");
         var doc=new GraphDocument{Nodes=[N("a","甲。"),N("b","乙。"),N("reference","参考。")],Edges=[E("a","b"),E("reference","b",role:"reference")]};
+        doc.Node("reference")!.BodyColors=[new(0,2,"#397FC4")];
         Storage.Save(path,doc);File.WriteAllText(Path.Combine(directory,"recent.txt"),"sample.papergraph");
         var window=new MainWindow(directory);window.SetFullTextVisible(true,false);
-        Check(window.CurrentFullText.Text=="甲。乙。","Window preview starts from the entire graph");
-        Check(window.FullTextCount.Text=="Words: 2 · Characters: 4","Header counts only the current manuscript, excluding references");
-        var firstRun=((System.Windows.Documents.Paragraph)window.FullTextBox.Document.Blocks.FirstBlock).Inlines.OfType<System.Windows.Documents.Run>().First();
-        window.FullTextBox.Selection.Select(firstRun.ContentStart,firstRun.ContentEnd);
-        Check(window.FullTextCount.Text=="Words: 1 / 2 · Characters: 2 / 4","Selection shows selected words and characters against page totals");
-        window.FullTextBox.Selection.Select(firstRun.ContentStart,firstRun.ContentStart);
-        Check(window.FullTextCount.Text=="Words: 2 · Characters: 4","Clearing a selection restores page totals");
+        Check(window.CurrentFullText.Text=="甲。乙。（参考。）","Window preview starts from the entire graph");
+        Check(window.FullTextCount.Text=="Words: 4 · Characters: 9","Header counts the current manuscript including displayed references");
+        var citationRuns=window.FullTextBox.Document.Blocks.OfType<System.Windows.Documents.Paragraph>().SelectMany(p=>p.Inlines.OfType<System.Windows.Documents.Run>()).ToArray();
+        Check(citationRuns.Any(r=>r.Text=="参考"&&r.Foreground.ToString()=="#FF397FC4"),"Citation text retains source colors in the editable manuscript");
+        window.FocusTextObject("reference-b");Check(!window.DirectionChoices.Children.OfType<Button>().Last().IsEnabled,"Reference inspector disables bidirectional arrows on Windows");
+        window.FullTextBox.Select(0,2);
+        Check(window.FullTextCount.Text=="Words: 1 / 4 · Characters: 2 / 9","Selection shows selected words and characters against page totals");
+        window.FullTextBox.Select(0,0);
+        Check(window.FullTextCount.Text=="Words: 4 · Characters: 9","Clearing a selection restores page totals");
         window.FocusTextObject("a");Check(window.Graph.Selected.SetEquals(["a"])&&window.PropositionBox.Text=="甲。","Clicking a text source locates the graph object and editor");
-        window.PropositionBox.Text="修改。";Pump();Check(window.CurrentFullText.Text=="修改。乙。","Typing updates preview before manual saving");
-        Check(window.FullTextCount.Text=="Words: 3 · Characters: 5","Typing refreshes counts without saving");
+        window.PropositionBox.Text="修改。";Pump();Check(window.CurrentFullText.Text=="修改。乙。（参考。）","Typing updates preview before manual saving");
+        Check(window.FullTextCount.Text=="Words: 5 · Characters: 10","Typing refreshes counts without saving");
         window.NotesBox.Text="人工笔记不在正文";Pump();Check(!window.CurrentFullText.Text.Contains("笔记"),"Notes edits remain out of manuscript text");
-        Check(window.FullTextCount.Text=="Words: 3 · Characters: 5","Notes do not affect counts");
+        Check(window.FullTextCount.Text=="Words: 5 · Characters: 10","Notes do not affect counts");
         window.SetTextRole("a-b","reference");Pump();Check(window.CurrentFullText.Text=="","Role changes immediately remove citation-only content");
         Check(window.FullTextCount.Text=="Words: 0 · Characters: 0","No manuscript resets both counters");
         var undo=window.EditMenu.Items.OfType<MenuItem>().Single(m=>m.Header?.ToString()=="Undo");undo.RaiseEvent(new RoutedEventArgs(MenuItem.ClickEvent));Pump();
-        Check(window.CurrentFullText.Text=="修改。乙。","Undo updates the preview and restores role");
-        Check(window.FullTextCount.Text=="Words: 3 · Characters: 5","Undo restores page counts");
+        Check(window.CurrentFullText.Text=="修改。乙。（参考。）","Undo updates the preview and restores role");
+        Check(window.FullTextCount.Text=="Words: 5 · Characters: 10","Undo restores page counts");
         var redo=window.EditMenu.Items.OfType<MenuItem>().Single(m=>m.Header?.ToString()=="Redo");redo.RaiseEvent(new RoutedEventArgs(MenuItem.ClickEvent));Pump();
         Check(window.CurrentFullText.Text.Length==0,"Redo updates preview");
         window.FocusTextObject("a-b");window.SetTextRole("a-b","flow");window.TextOrderBox.Text="3";Pump();
@@ -156,19 +159,19 @@ public static class FullTextTests
         string VisibleText()=>new System.Windows.Documents.TextRange(window.FullTextBox.Document.ContentStart,window.FullTextBox.Document.ContentEnd).Text.Trim();
         Check(window.CurrentFullText.Pages.Count==2&&VisibleText()=="a b"&&window.FullTextPageTabs.Children.Count==2,"Only the first connected manuscript is shown, with two numeric tabs");
         ((RadioButton)window.FullTextPageTabs.Children[1]).IsChecked=true;
-        Check(window.CurrentFullTextPageIndex==1&&VisibleText()=="c d","Selecting the second tab replaces the displayed manuscript");
+        Check(window.CurrentFullTextPageIndex==1&&VisibleText()=="c (b) d","Selecting the second tab replaces the displayed manuscript");
         window.FocusTextObject("a");Check(window.CurrentFullTextPageIndex==0&&VisibleText()=="a b","Selecting a point in another manuscript follows its text page");
         window.FocusTextObject("c");window.PropositionBox.Text="Changed.";Pump();
-        Check(window.CurrentFullTextPageIndex==1&&VisibleText()=="Changed. d","Live edits preserve the selected page and update only its manuscript");
-        Check(window.FullTextCount.Text=="Words: 2 · Characters: 9","Counts use the edited current page, not all pages");
+        Check(window.CurrentFullTextPageIndex==1&&VisibleText()=="Changed. (b) d","Live edits preserve the selected page and update only its manuscript");
+        Check(window.FullTextCount.Text=="Words: 3 · Characters: 12","Counts use the edited current page, not all pages");
         window.SelectFullTextPage(0);Check(window.FullTextCount.Text=="Words: 2 · Characters: 2","Switching pages replaces the count");
         window.SelectFullTextPage(1);
         window.SetTextRole("b-c","flow");Pump();
         Check(window.CurrentFullText.Pages.Count==1&&window.FullTextPagesScroller.Visibility==Visibility.Collapsed&&VisibleText()=="a b Changed. d","Connecting manuscripts merges visible text live and hides unnecessary tabs");
         Check(window.FullTextCount.Text=="Words: 4 · Characters: 11","A Body bridge updates totals for the merged manuscript");
         var undo=window.EditMenu.Items.OfType<MenuItem>().Single(m=>m.Header?.ToString()=="Undo");undo.RaiseEvent(new RoutedEventArgs(MenuItem.ClickEvent));Pump();
-        Check(window.CurrentFullText.Pages.Count==2&&window.CurrentFullTextPageIndex==1&&VisibleText()=="Changed. d","Undo splits pages and preserves the reader's component");
-        Check(window.FullTextCount.Text=="Words: 2 · Characters: 9","Undoing the bridge restores current-page totals");
+        Check(window.CurrentFullText.Pages.Count==2&&window.CurrentFullTextPageIndex==1&&VisibleText()=="Changed. (b) d","Undo splits pages and preserves the reader's component");
+        Check(window.FullTextCount.Text=="Words: 3 · Characters: 12","Undoing the bridge restores current-page totals");
         var redo=window.EditMenu.Items.OfType<MenuItem>().Single(m=>m.Header?.ToString()=="Redo");redo.RaiseEvent(new RoutedEventArgs(MenuItem.ClickEvent));Pump();
         Check(window.CurrentFullText.Pages.Count==1&&VisibleText()=="a b Changed. d","Redo merges pages again without duplicate text");
         window.SetTextRole("b-c","reference");Pump();
@@ -177,7 +180,7 @@ public static class FullTextTests
         var saved=window.Graph.Document.Serialize();window.SelectFullTextPage(0);window.SelectFullTextPage(1);
         Check(window.Graph.Document.Serialize()==saved,"Switching pages leaves graph content unchanged");window.Close();
         var reopened=new MainWindow(directory);reopened.SetFullTextVisible(true,false);
-        Check(reopened.CurrentFullText.Pages.Count==2&&reopened.CurrentFullText.Pages[0].Text=="a b"&&reopened.CurrentFullText.Pages[1].Text=="Changed. d","Restart retains page ordering");reopened.Close();
+        Check(reopened.CurrentFullText.Pages.Count==2&&reopened.CurrentFullText.Pages[0].Text=="a b"&&reopened.CurrentFullText.Pages[1].Text=="Changed. (b) d","Restart retains page ordering");reopened.Close();
         File.AppendAllText(Path.Combine(AppContext.BaseDirectory,"test-results.txt"),"PASS: live page tabs, source navigation across pages, live typing, automatic page merge/split, undo/redo, API pages and restart ordering.\n");
     }
     public static void VerifyFixture(string path,string output)

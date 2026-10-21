@@ -7,6 +7,7 @@ internal static class AgentGraphEdit
 {
     internal static GraphDocument Prepare(GraphDocument current,string file,JsonElement request)
     {
+        GraphAgentAccess.RequireWritable(current);
         if(!PathIdentity.Same(AgentProtocol.Required(request,"expectedDocument"),file))throw new InvalidDataException("Active document changed. Read a fresh snapshot.");
         if(AgentProtocol.Required(request,"expectedRevision")!=AgentProtocol.Revision(current))throw new InvalidDataException("Document changed. Read a fresh snapshot before editing.");
         if(!Guid.TryParse(AgentProtocol.Required(request,"requestId"),out _))throw new InvalidDataException("requestId must be a UUID.");
@@ -25,7 +26,7 @@ internal static class AgentGraphEdit
         {
             var id=Id(e);var n=next.Node(id);
             if(n==null){if(!e.TryGetProperty("x",out _)||!e.TryGetProperty("y",out _))throw new InvalidDataException("New nodes require x and y.");n=new(){Id=id};next.Nodes.Add(n);}
-            n.Title=Text(e,"body",n.Title);n.Caption=Text(e,"caption",n.Caption);GraphNotes.ApplyAgent(n,e);n.Color=Text(e,"color",n.Color);
+            n.Title=Text(e,"body",n.Title);GraphTextColors.ApplyAgent(n,e);n.Caption=Text(e,"caption",n.Caption);GraphNotes.ApplyAgent(n,e);n.Color=Text(e,"color",n.Color);
             if(e.TryGetProperty("markColor",out var mark))n.MarkColor=mark.ValueKind==JsonValueKind.Null?null:mark.GetString();
             n.X=Number(e,"x",n.X);n.Y=Number(e,"y",n.Y);
             if(e.TryGetProperty("parentId",out var parent))n.Parent=parent.ValueKind==JsonValueKind.Null?null:parent.GetString();
@@ -34,7 +35,7 @@ internal static class AgentGraphEdit
         {
             var id=Id(e);var r=next.Regions.Find(r=>r.Id==id);
             if(r==null){foreach(var k in new[]{"x","y","width","height"})if(!e.TryGetProperty(k,out _))throw new InvalidDataException("New regions require bounds.");r=new(){Id=id,IsAbsolute=true};next.Regions.Add(r);}
-            r.Title=Text(e,"body",r.Title);r.Caption=Text(e,"caption",r.Caption);GraphNotes.ApplyAgent(r,e);r.Color=Text(e,"color",r.Color);
+            r.Title=Text(e,"body",r.Title);GraphTextColors.ApplyAgent(r,e);r.Caption=Text(e,"caption",r.Caption);GraphNotes.ApplyAgent(r,e);r.Color=Text(e,"color",r.Color);
             r.X=Number(e,"x",r.X);r.Y=Number(e,"y",r.Y);r.Width=Number(e,"width",r.Width);r.Height=Number(e,"height",r.Height);
             if(e.TryGetProperty("parentId",out var parent))r.Parent=parent.ValueKind==JsonValueKind.Null?null:parent.GetString();
         }
@@ -45,6 +46,8 @@ internal static class AgentGraphEdit
             edge.From=Text(e,"from",edge.From);edge.To=Text(e,"to",edge.To);edge.Label=Text(e,"kind",edge.Label);
             edge.Caption=Text(e,"caption",edge.Caption);GraphNotes.ApplyAgent(edge,e);edge.Direction=Text(e,"direction",edge.Direction);
             if(e.TryGetProperty("textRole",out var role))edge.TextRole=role.GetString() is string value&&value!="flow"?value:null;
+            if(GraphFullText.IsReference(edge)&&edge.Direction=="both"&&(e.TryGetProperty("textRole",out _)||e.TryGetProperty("direction",out _)))
+                throw new InvalidDataException(GraphFullText.ReferenceDirectionHint);
             if(e.TryGetProperty("textOrder",out var order))edge.TextOrder=order.GetInt32();
             if(e.TryGetProperty("markColor",out var mark))edge.MarkColor=mark.ValueKind==JsonValueKind.Null?null:mark.GetString();
         }

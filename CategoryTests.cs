@@ -29,8 +29,8 @@ public static class CategoryTests
         Check(window.CurrentGraph.CategoryId==id&&((GraphCategory)window.GraphTree.Items[0]).Title=="Thesis","Categories, titles and membership survive restart");
         Check(Read(creation).GetProperty("alreadyApplied").GetBoolean()&&((GraphCategory)window.GraphTree.Items[0]).Title=="Thesis","A retry after restart does not recreate or rename the category");
         var remove=Request("removeCategory");remove["categoryId"]=id;Read(remove);
-        Check(window.CurrentGraph.CategoryId==""&&File.ReadAllBytes(path).SequenceEqual(original)&&window.GraphTree.Items.Count==1,"Removing a category keeps all documents in Unfiled");
-        window.Close();window=new MainWindow(directory);Check(window.CurrentGraph.CategoryId=="","Unfiled state persists after category removal");window.Close();
+        Check(window.CurrentGraph.CategoryId==""&&File.ReadAllBytes(path).SequenceEqual(original)&&window.GraphTree.Items.Count==1&&window.GraphTree.Items[0] is GraphEntry,"Removing a category keeps all documents directly in the sidebar");
+        window.Close();window=new MainWindow(directory);Check(window.CurrentGraph.CategoryId=="","Unassigned state persists after category removal");window.Close();
         File.AppendAllText(Path.Combine(AppContext.BaseDirectory,"test-results.txt"),"PASS: empty categories, UI membership, unchanged graph files, agent list/create/rename/move/remove, revision conflicts, atomic batches and persistent retry/restart.\n");
     }
 }

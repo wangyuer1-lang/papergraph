@@ -54,6 +54,6 @@ public partial class MainWindow
         else throw new InvalidDataException("Unknown category operation.");
         if(next.Categories.GroupBy(c=>c.Name,StringComparer.OrdinalIgnoreCase).Any(g=>g.Count()>1))throw new InvalidDataException("A category with that name already exists.");
         if(next.Receipts.Count>=256)next.Receipts.Remove(next.Receipts.Keys.First());next.Receipts[key]=hash;
-        next.Save(CatalogPath);catalog=next;RefreshLibraryTree(operation=="moveGraphs");Notify(operation=="removeCategory"?"Category removed · graphs kept in Unfiled":"Graph categories updated");return Result(false);
+        next.Save(CatalogPath);catalog=next;RefreshLibraryTree(operation=="moveGraphs");Notify(operation=="removeCategory"?"Category removed · graphs kept in the sidebar":"Graph categories updated");return Result(false);
     }
 }

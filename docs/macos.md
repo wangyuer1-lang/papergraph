@@ -1,16 +1,16 @@
 # macOS preview
 
-Papergraph 0.15.0-preview.7 adds an Avalonia desktop target in `Mac/`. It uses the existing graph model, file format, graph surface, layout algorithms, note rules and agent operations. The original Windows WPF target remains available.
+Papergraph 0.16.0-preview.8 adds an Avalonia desktop target in `Mac/`. It uses the existing graph model, file format, graph surface, layout algorithms, note rules and agent operations. The original Windows WPF target remains available.
 
 ## Download and install
 
-Download [0.15.0-preview.7](https://github.com/wangyuer1-lang/papergraph/releases/tag/v0.15.0-preview.7). Use `macos-arm64` for Apple Silicon or `macos-x64` for Intel, extract the ZIP, and move `Papergraph.app` to Applications. Requires macOS 14 or newer; the .NET runtime is included.
+Download [0.16.0-preview.8](https://github.com/wangyuer1-lang/papergraph/releases/tag/v0.16.0-preview.8). Use `macos-arm64` for Apple Silicon or `macos-x64` for Intel, extract the ZIP, and move `Papergraph.app` to Applications. Requires macOS 14 or newer; the .NET runtime is included.
 
 This preview is ad-hoc signed and is not notarized by Apple. If macOS blocks it, review [Apple’s instructions for opening an app from an unidentified developer](https://support.apple.com/en-us/102445). Do not disable Gatekeeper globally. Intel builds have not yet been tested on Intel hardware.
 
 ## Run and build
 
-Install the .NET 10 SDK. No WPF or Windows runtime is required for the Mac target.
+Install the .NET 10 SDK and Xcode Command Line Tools (for the native Bluetooth adapter). No WPF or Windows runtime is required for the Mac target.
 
 ```sh
 dotnet run --project Mac/Papergraph.Mac.csproj
@@ -30,15 +30,15 @@ The GitHub Actions macOS workflow runs the desktop regression suite on its nativ
 
 - Use File → Open to load `.papergraph`, legacy `.yujian`, or backup files.
 - Double-click empty canvas to add a proposition. Drag its small connection handle to connect it to another point or frame.
-- Select (V): primary-drag empty canvas to box-select; drag the selected objects to move them. Shift-click or Command-click extends the selection. Drag a frame border to move it, and its selected lower-right handle to resize it. Actions → Move □ and contents toggles whether its points move with it.
+- Select (V): primary-drag empty canvas to pan with a mouse or trackpad; drag objects to move them. Shift-drag or right-drag empty canvas to box-select. Shift-click or Command-click extends the selection. Drag a frame border to move it, and its selected lower-right handle to resize it. Actions → Move □ and contents toggles whether its points move with it.
 - Pan (H): primary-drag anywhere to pan without changing the selection. Hold Space for temporary pan and release it to restore the current tool. Two-finger scrolling pans in both axes.
-- Pinch to zoom around the pointer; Command-scroll also zooms. The visible − / + buttons zoom around the canvas centre, and clicking the percentage resets to 100%.
+- The mouse wheel zooms around the pointer without a modifier key. Trackpad two-finger scrolling pans; pinch and Command-scroll also zoom. The visible − / + buttons zoom around the canvas centre, and clicking the percentage resets to 100%.
 - Actions exposes commands for the selection or canvas; the permanent ··· beside Graphs exposes graph/category commands. Secondary click and Control-click remain optional shortcuts. Existing right-drag gestures are retained.
 - F or Command-0 fits the graph; Shift+F fits for editing; Shift+Space toggles captions; Z switches to detail view. Delete (⌫) deletes selected canvas objects. Text fields retain normal typing and deletion.
 - ⌘S saves. ⌘Z / ⌘⇧Z undo and redo graph actions when the canvas has focus. Native text fields retain their normal editing shortcuts.
 - Double-click a ring or frame to enter it. The back button restores the preceding board and viewport.
 - Notes have four pages. Page 1 remains reserved for human writing; agents write pages 2–4.
-- Full text uses the same reading-order calculation and opens below the graph, with a draggable divider, numbered pages, reading-order checks and selection-aware word/character counts. It is a read-only manuscript, as on Windows. Click a passage to select its source point and edit the source in the right panel. Copy exports the current manuscript page.
+- Full text uses the same reading-order calculation and opens below the graph, with a draggable divider, numbered pages, reading-order checks and selection-aware word/character counts. Click a passage to place the caret and edit it directly. Changes update its source proposition and the right panel immediately, use the existing automatic save, and support Command-Z / Command-Shift-Z. Source text colors and personal notes are preserved. Edit one proposition at a time: replacing a selection spanning multiple propositions or a generated separator is rejected with an explanation, without changing any source. Single-headed Reference arrows point from material to a body proposition, adding the material in parentheses immediately after it. Editing a citation updates its source and every displayed occurrence; generated parentheses cannot be edited into the source. Bidirectional Reference arrows are disallowed, and older ambiguous ones appear in the reading-order checks until the user chooses a direction. Citations and their parentheses automatically use a lemon background distinct from the text-color palette, with a muted dark-mode shade. Saved text and font colors remain intact; selecting text keeps the native selection visible. Copy exports the edited current manuscript page. Windows 0.16.0-preview.8 uses the same source-boundary rules in its native editable Full text panel.
 - The language selector offers English, Simplified Chinese and Japanese. Some preview diagnostics remain English.
 
 The default library is `~/Library/Application Support/Papergraph`, outside the signed app bundle. `--data-dir` selects a different library. Copy Windows graph files to your Mac and open them through the app; Windows absolute library paths need to be reselected on macOS. Autosave and `.bak` backups use the shared storage implementation. A failed save keeps the editor open. The app prevents two processes from opening the same library.
@@ -62,7 +62,7 @@ Preview 2 follows the Windows window structure: a 46-pixel toolbar, 218-pixel ca
 
 Preview 3 renders menus in the window overlay, tracks context-action positions on press/release, and supports Mac Control-click. Independent button and menu themes prevent Fluent pressed/focus styling from leaking through. Sun, moon, plus, category, back, link and more symbols use fixed vector silhouettes and centred sizing rather than platform font fallback.
 
-Preview 4 adds a compact canvas toolbar with Select, Pan, zoom and Actions controls, a context-sensitive gesture hint and a persistent library action button. Ordinary dragging selects/moves objects, scrolling pans, and native touchpad magnification zooms. Command shortcuts, temporary Space panning and Mac Delete respect text-editor focus. English, Simplified Chinese and Japanese help describe these controls.
+Preview 4 adds a compact canvas toolbar with Select, Pan, zoom and Actions controls, a context-sensitive gesture hint and a persistent library action button. The current version pans when dragging empty canvas, selects an area with Shift-drag or right-drag, zooms with the mouse wheel and pans with trackpad scrolling. Command shortcuts, temporary Space panning and Mac Delete respect text-editor focus. English, Simplified Chinese and Japanese help describe these controls.
 
 Preview 5 rebuilds the Mac application icon directly from the Windows `app.ico`, embeds both formats, and assigns the native `NSApplication` icon explicitly so it also appears when launched outside Finder. The theme symbols now follow the original U+2600 / U+263E font artwork and 21-pixel em size: a filled sun with eight rays and an outlined crescent. This replaces the earlier approximate drawings. The button tooltip describes the destination theme, matching Windows. No font file is bundled. The comparison uses original Windows XAML and a local Segoe UI Symbol reference; it is not a screenshot comparison against a running Windows installation.
 
@@ -72,14 +72,46 @@ Native window chrome, font rasterization, file dialogs and IME are provided by m
 
 ## Validation
 
-The Mac self-tests reuse the existing model, spacing, caption layout, ring connection and agent library regression suites. Additional checks exercise Unicode persistence, native editor changes, note-page isolation, undo/redo, copy/paste ID remapping, full-text source editing, stale request rejection, idempotent retries, durable writes, categories, Unix path identity, the live agent pipe and rendering. The parity suite also checks menu structure, panel sizing, per-object note tabs, the six relation markers, duplicate-link rejection, note isolation, board return selection/view, Command-N, Escape, frame selection bounds, double-tap navigation, manuscript source location, and the library selection after autosave. Light, dark and relation-editor screenshots are saved with the test evidence.
+The Mac self-tests reuse the existing model, spacing, caption layout, ring connection and agent library regression suites. Run `--full-text-edit-test --data-dir /tmp/papergraph-full-text-tests` in a fresh directory for focused tests of source editing, parenthetical citations, repeated-source caret placement, single-arrow enforcement, color preservation, generated punctuation, and undo/redo.
+
+Additional checks exercise Unicode persistence, native editor changes, note-page isolation, undo/redo, copy/paste ID remapping, full-text source editing, stale request rejection, idempotent retries, durable writes, categories, Unix path identity, the live agent pipe and rendering. The parity suite also checks menu structure, panel sizing, per-object note tabs, the six relation markers, duplicate-link rejection, note isolation, board return selection/view, Command-N, Escape, frame selection bounds, double-tap navigation, manuscript source location, and the library selection after autosave. Light, dark and relation-editor screenshots are saved with the test evidence.
 
 The pointer suite drives routed press/move/release events through the compatibility adapter: point and canvas menus, Control-click, menu Escape/focus, selection dragging, frame movement/resizing, capture cancellation, popup placement, icon centring, and light/dark pressed feedback. Rendered evidence is saved outside the app bundle. Actual macOS menu clicks are also checked manually in an isolated library.
 
-The Mac interaction suite additionally checks primary-button marquee/group/frame movement and resizing, undo, Command-click selection, Pan over objects without selection loss, hold-Space and text-focus isolation, two-axis wheel panning, pointer-anchored Command-scroll and magnification, Mac Delete, visible canvas/library commands, and controls wrapping at the minimum window width.
+The Mac interaction suite additionally checks primary-button marquee/group/frame movement and resizing, undo, Command-click selection, Pan over objects without selection loss, hold-Space and text-focus isolation, mouse-wheel zoom, two-axis gesture panning, switching between devices, pointer-anchored Command-scroll and magnification, Mac Delete, visible canvas/library commands, and controls wrapping at the minimum window width.
 
 The icon suite renders both theme symbols and complete theme buttons, checks two click transitions and their destination tooltips, and exports the expected and native application icon images. AppKit copies and color-converts icon images, so rendered shape comparison is used instead of pointer or encoded TIFF byte equality. The 64-pixel ICNS representation is also checked against the original ICO pixels. Native Apple Silicon release-bundle tests and both architecture builds passed for preview 5; native Intel execution remains unverified.
 
 Before a public stable release, test real manuscripts and large graphs on both Apple Silicon and Intel Macs, test Chinese and Japanese IME composition interactively, run the Windows self-tests on Windows CI, and sign/notarize the release with the maintainer's identity. Never run self-tests against the user's production data directory.
 
 Preview 6 gives the shared application mark a white rounded tile and soft shadow. `scripts/build-app-icon.py` generates `Assets/AppIcon.png` and Windows `app.ico`; normal builds consume these checked-in files. macOS icon generation reads the PNG master directly, avoiding the paletted-ICO alpha decoding issue in `sips`. Only the space outside the white tile is transparent.
+
+## AI read-only protection
+
+Click the open/closed padlock immediately to the left of any graph name to toggle **AI read-only**. An open lock permits agent edits; a closed lock blocks them. The graph name itself stays unchanged. The Graphs ellipsis and context menu retain the same toggle. Agents can inspect them, but graph writes are rejected; manual editing remains available. The flag is saved per graph, copied with a graph, and preserved across manuscript Undo/Redo. Only the graph menu changes it; the agent protocol does not expose an unlock operation. This is an application guard for agent writes, not an operating-system sandbox.
+
+Run the focused permission regression suite in a disposable directory:
+
+```sh
+dotnet run --project Mac/Papergraph.Mac.csproj -- --agent-protection-test --data-dir /tmp/papergraph-agent-protection-tests
+```
+
+## Proposition text colors
+
+Select text in a proposition, ring or frame body and click one of the five Text color swatches above the editor. Clear removes the selected color. The formatting is saved independently of the body, follows text edits and appears in the live full-text panel. Plain-text copying and character counts are unchanged. Command-Z / Command-Shift-Z in the body editor use the document history so text and formatting are restored together. Existing title and Notes editing retain native text undo.
+
+The focused regression suite runs with `--text-color-test --data-dir /tmp/papergraph-text-color-tests` and checks Unicode ranges, editing, clearing, copy/paste of graph objects, persistence, Undo/Redo, native text layout, IME preedit, full text and protected agent writes. Rendered light/dark evidence is written to that disposable library.
+
+Full text editing checks run with `--full-text-edit-test --data-dir /tmp/papergraph-full-text-edit-tests` using a fresh directory. They cover source mapping, boundary rejection, Unicode, colors, empty text, page and graph switching, stale source protection, automatic saving, undo/redo, and all three interface languages.
+
+## Canvas controls and categories
+
+The canvas toolbar no longer has a permanent Pan button. Left-drag (or trackpad click-drag) on empty canvas pans by default; Shift-drag or right-drag box-selects. Two-finger scrolling,
+mouse-wheel/pinch zoom and hold-Space dragging remain available. View → Pan (H) enters
+persistent pan mode; View → Select (V), or the Select button shown during that
+mode, returns to selection. The canvas hint shows the active mode.
+
+Unassigned graphs now appear directly in the sidebar. User categories remain
+renameable and removable; removing a category keeps all its graphs. Use
+Move to category → No category to move a graph back to the sidebar root.
+The file format and category assignments are unchanged.

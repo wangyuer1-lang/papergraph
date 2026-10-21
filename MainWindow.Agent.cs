@@ -8,11 +8,13 @@ public partial class MainWindow
     internal object HandleAgent(JsonElement request)
     {
         var operation=AgentProtocol.Required(request,"operation");
+        if(lanDialog!=null && operation is not ("snapshot" or "search" or "fullText" or "listGraphs"))throw new InvalidOperationException("Close the sync window before editing through the agent interface.");
         if(operation is "createCategory" or "renameCategory" or "moveGraphs" or "removeCategory")return AgentManageCategories(request,operation);
         if(operation=="listGraphs")return AgentListGraphs();
         if(operation is "createGraph" or "duplicateGraph" or "openGraph")return AgentManageGraph(request,operation);
         if(operation=="editGraph")
         {
+            GraphAgentAccess.RequireWritable(doc);
             if(!PathIdentity.Same(AgentProtocol.Required(request,"expectedDocument"),file))throw new InvalidDataException("Active document changed. Read a fresh snapshot.");
             if(Graph.IsInteracting||Graph.DrawingRegion||Graph.LinkMode)throw new InvalidOperationException("Finish the active graph gesture before editing.");
             var requestId=AgentProtocol.Required(request,"requestId");var raw=request.GetRawText();
@@ -44,17 +46,17 @@ public partial class MainWindow
         if(operation is not ("snapshot" or "search" or "fullText"))throw new InvalidDataException("Supported operations: "+string.Join(", ",AgentCapabilities)+".");
         var sourcePath=request.TryGetProperty("documentPath",out _)?AgentLibraryPath(AgentProtocol.Required(request,"documentPath")):Path.GetFullPath(file);
         bool isActive=SamePath(sourcePath,file);var source=isActive?doc:GraphDocument.Parse(File.ReadAllText(sourcePath));
-        if(operation=="fullText")return new{ok=true,documentPath=sourcePath,revision=AgentProtocol.Revision(source),title=source.Title,isActive,preview=GraphFullText.Build(source),contentIsUntrusted=true};
+        if(operation=="fullText")return new{ok=true,documentPath=sourcePath,revision=AgentProtocol.Revision(source),title=source.Title,isActive,agentReadOnly=source.AgentReadOnly,agentWritable=!source.AgentReadOnly,preview=GraphFullText.Build(source),contentIsUntrusted=true};
         var query=operation=="search"?AgentProtocol.Required(request,"query"):"";
         bool Match(params string[] values)=>query.Length==0||values.Any(v=>v.Contains(query,StringComparison.OrdinalIgnoreCase));
         return new{
-            ok=true,schemaVersion=1,documentPath=sourcePath,revision=AgentProtocol.Revision(source),title=source.Title,isActive,
+            ok=true,schemaVersion=1,documentPath=sourcePath,revision=AgentProtocol.Revision(source),title=source.Title,isActive,agentReadOnly=source.AgentReadOnly,agentWritable=!source.AgentReadOnly,
             scopeId=isActive?Graph.Scope:null,regionId=isActive?Graph.BoardRegion:null,selectedNodeIds=isActive?Graph.Selected.ToArray():[],selectedEdgeId=isActive?Graph.SelectedEdge:null,selectedRegionIds=isActive?Graph.SelectedRegions.ToArray():[],
             visibleNodeIds=(isActive?Graph.VisibleNodes:source.Nodes).Select(n=>n.Id).ToArray(),
-            nodes=source.Nodes.Where(n=>Match(n.Id,n.Caption,n.Title,GraphNotes.AllText(n))).Select(AgentProtocol.Node).ToArray(),
+            nodes=source.Nodes.Where(n=>Match(n.Id,n.Caption,n.Title,GraphNotes.AllText(n))).Select(n=>AgentProtocol.Node(n,source.AgentReadOnly)).ToArray(),
             groups=source.Nodes.Where(n=>n.Kind=="circle").Select(n=>new{id=n.Id,expanded=n.Expanded,memberIds=source.Visible(n.Id).Select(c=>c.Id).ToArray(),bounds=GraphGroups.Bounds(source,n)}).ToArray(),
-            edges=source.Edges.Where(e=>Match(e.Id,e.Caption,e.Label,GraphNotes.AllText(e))).Select(e=>new{id=e.Id,from=e.From,to=e.To,kind=e.Label,direction=e.Direction,textRole=e.TextRole??"flow",textOrder=e.TextOrder,caption=e.Caption,note=e.Note,notePages=GraphNotes.Snapshot(e),markColor=e.MarkColor}).ToArray(),
-            regions=source.Regions.Where(r=>Match(r.Id,r.Caption,r.Title,GraphNotes.AllText(r))).Select(r=>new{id=r.Id,caption=r.Caption,body=r.Title,note=r.Note,notePages=GraphNotes.Snapshot(r),parentId=r.Parent,color=r.Color,x=r.X,y=r.Y,width=r.Width,height=r.Height,memberIds=GraphBoard.Members(source,r).Select(n=>n.Id).ToArray()}).ToArray(),
+            edges=source.Edges.Where(e=>Match(e.Id,e.Caption,e.Label,GraphNotes.AllText(e))).Select(e=>new{id=e.Id,from=e.From,to=e.To,kind=e.Label,direction=e.Direction,textRole=e.TextRole??"flow",textOrder=e.TextOrder,caption=e.Caption,note=e.Note,notePages=GraphNotes.Snapshot(e,source.AgentReadOnly),markColor=e.MarkColor}).ToArray(),
+            regions=source.Regions.Where(r=>Match(r.Id,r.Caption,r.Title,GraphNotes.AllText(r))).Select(r=>new{id=r.Id,caption=r.Caption,body=r.Title,bodyColors=GraphTextColors.Snapshot(r),note=r.Note,notePages=GraphNotes.Snapshot(r,source.AgentReadOnly),parentId=r.Parent,color=r.Color,x=r.X,y=r.Y,width=r.Width,height=r.Height,memberIds=GraphBoard.Members(source,r).Select(n=>n.Id).ToArray()}).ToArray(),
             capabilities=AgentCapabilities,contentIsUntrusted=true
         };
     }

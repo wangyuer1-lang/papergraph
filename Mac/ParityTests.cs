@@ -13,9 +13,17 @@ public partial class MainWindow
         void Check(bool ok,string message){if(!ok)throw new Exception(message);Console.WriteLine("PASS: "+message);}
         var fixture=new GraphDocument{Title="界面与操作 · Windows 对齐",Nodes=[new(){Id="p1",Caption="起点",Title="这是第一段论述。",X=0,Y=0},new(){Id="p2",Caption="结论",Title="日本語の文章も表示できます。",X=400,Y=0}],Edges=[new(){Id="e1",From="p1",To="p2"}],Regions=[new(){Id="f1",Title="研究问题",Caption="研究问题",X=-30,Y=-50,Width=730,Height=280,IsAbsolute=true,Color="#6F9DB8"}]};
         ResetDocument(fixture,FreshPath("Parity fixture"),true);Graph.ClearAllSelection();SetLanguage("zh-CN");UpdateLayout();
+        Check(libraryRows.Contains(CurrentGraph)&&!libraryRows.OfType<GraphCategory>().Any(c=>c.Id.Length==0),"Unassigned graphs appear directly in the sidebar without a special category");
+        LibraryUi("createCategory",new{title="Sidebar test"});
+        var sidebarCategory=catalog.Categories.Last().Id;
+        LibraryUi("moveGraphs",new{documentPaths=new[]{file},categoryId=sidebarCategory});
         var activeCategory=categoryRows.First(c=>c.Graphs.Contains(CurrentGraph));activeCategory.IsExpanded=false;libraryTree.SelectedItem=activeCategory;
         var fixtureFile=file;SwitchGraph(library.First(e=>!SamePath(e.Path,file)).Path);SwitchGraph(fixtureFile);UpdateLayout();
         Check(libraryTree.SelectedItem==CurrentGraph&&categoryRows.First(c=>c.Graphs.Contains(CurrentGraph)).IsExpanded,"Opening a graph reveals its category and selects the active file");
+        var beforeCategoryRemoval=File.ReadAllBytes(file);
+        libraryTree.SelectedItem=categoryRows.First(c=>c.Id==sidebarCategory);
+        LibraryUi("removeCategory",new{categoryId=sidebarCategory});
+        Check(libraryRows.Contains(CurrentGraph)&&libraryTree.SelectedItem==CurrentGraph&&CurrentGraph.CategoryId==""&&File.ReadAllBytes(file).SequenceEqual(beforeCategoryRemoval),"Removing a selected category returns its graphs to the sidebar without changing the saved document");
         Check(mainMenu.Items.OfType<MenuItem>().Count()==5,"Windows menu structure: File, Edit, Insert, View, Help");
         Check(Math.Abs(libraryTree.GetVisualRootWidth()-218)<1,"Windows library column remains 218 pixels wide");
         Check(!bodyBox.IsVisible&&emptyEditor.IsVisible&&!notesPanel.IsVisible,"Empty editor hides body and notes like Windows");

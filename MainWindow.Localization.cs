@@ -18,12 +18,12 @@ public partial class MainWindow
         ViewMenu.Items.Add(menu);
         Localization.Bind(fullTextButton!,ContentControl.ContentProperty,"Full text");
         Localization.Bind(fullTextButton!,ToolTipProperty,"Show or hide live full text");
-        foreach(var editor in new[]{DocumentTitleBox,CaptionBox,PropositionBox,NotesBox})ConfigureTextMenu(editor);
+        foreach(var editor in new System.Windows.Controls.Primitives.TextBoxBase[]{DocumentTitleBox,CaptionBox,PropositionBox,NotesBox})ConfigureTextMenu(editor);
     }
     internal void SetLanguage(string code)
     {
         language=Localization.Normalize(code);Localization.Apply(Resources,language);
-        ApplyTheme();UpdateConnectionButton();RefreshFullText();RefreshLibraryTree();SaveViewSettings();
+        ApplyTheme();UpdateConnectionButton();UpdateCanvasControls();RefreshFullText();RefreshLibraryTree();SaveViewSettings();
     }
     MenuItem LocalizedItem(ItemsControl menu,string source,Action action,string? shortcut=null,bool enabled=true)
     {

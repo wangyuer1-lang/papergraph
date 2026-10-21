@@ -43,7 +43,7 @@ public static class FitTests
         graph.ZoomBy(4,anchor);Settle();Check(Math.Abs(graph.Zoom-.10)<1e-12&&(graph.ToScreen(world)-anchor).Length<.001,"Zoom reverses normally from overview scale");
         Check(window.RouteFit(Key.F,ModifierKeys.None,graph),"F invokes full fit");Settle();CheckFit();
         var before=(graph.Zoom,graph.Offset);
-        foreach(var editor in new[]{window.PropositionBox,window.NotesBox,window.CaptionBox,window.DocumentTitleBox})
+        foreach(var editor in new System.Windows.Controls.Primitives.TextBoxBase[]{window.PropositionBox,window.NotesBox,window.CaptionBox,window.DocumentTitleBox})
             Check(!window.RouteFit(Key.F,ModifierKeys.None,editor)&&!window.RouteFit(Key.F,ModifierKeys.Shift,editor),"Typing f or F in an editor never changes the camera");
         Check(!window.RouteFit(Key.F,ModifierKeys.Control,graph)&&!window.RouteFit(Key.F,ModifierKeys.Alt,graph)&&!window.RouteFit(Key.F,ModifierKeys.None,new MenuItem()),"Other shortcuts and menus do not trigger Fit");Settle();
         Check((graph.Zoom,graph.Offset)==before,"Rejected fit shortcuts preserve the camera");

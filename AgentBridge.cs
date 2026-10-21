@@ -66,9 +66,10 @@ internal static class AgentProtocol
 {
     internal static string Revision(GraphDocument doc)=>Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(doc.Serialize())));
     internal static string Required(JsonElement request,string name)=>request.TryGetProperty(name,out var value)&&value.ValueKind==JsonValueKind.String&&!string.IsNullOrWhiteSpace(value.GetString())?value.GetString()!:throw new InvalidDataException("Missing "+name+".");
-    internal static object Node(Proposition n)=>new{id=n.Id,caption=n.Caption,body=n.Title,note=n.Note,notePages=GraphNotes.Snapshot(n),kind=n.Kind,parentId=n.Parent,x=n.X,y=n.Y,color=n.Color,markColor=n.MarkColor};
+    internal static object Node(Proposition n,bool agentReadOnly=false)=>new{id=n.Id,caption=n.Caption,body=n.Title,bodyColors=GraphTextColors.Snapshot(n),note=n.Note,notePages=GraphNotes.Snapshot(n,agentReadOnly),kind=n.Kind,parentId=n.Parent,x=n.X,y=n.Y,color=n.Color,markColor=n.MarkColor};
     internal static (GraphDocument Document,string[] Ids,bool AlreadyApplied) Prepare(GraphDocument doc,string file,JsonElement request)
     {
+        GraphAgentAccess.RequireWritable(doc);
         if(!PathIdentity.Same(Required(request,"expectedDocument"),file))throw new InvalidDataException("The active document changed. Read a fresh snapshot.");
         var requestId=Required(request,"requestId");if(!Guid.TryParse(requestId,out var requestGuid))throw new InvalidDataException("requestId must be a UUID; reuse it when retrying.");
         var anchor=doc.Node(Required(request,"nearNodeId"))??throw new InvalidDataException("nearNodeId no longer exists.");

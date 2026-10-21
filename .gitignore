@@ -7,6 +7,9 @@ Data/
 *.bak
 *.tmp
 *.pdb
+*.keystore
+*.apk
+*.aab
 *.user
 .vs/
 .env

@@ -4,7 +4,16 @@ using System.Windows;
 namespace Papergraph;
 
 public sealed record FullTextIssue(string Code,string Message,string? ObjectId);
-public sealed record FullTextPiece(string NodeId,string Text,string Separator,string? FrameId,string? CircleId);
+public sealed record FullTextReference(string NodeId,string Text,string EdgeId);
+public sealed record FullTextPiece(string NodeId,string Text,string Separator,string? FrameId,string? CircleId)
+{
+    public IReadOnlyList<FullTextReference> References {get;init;}=[];
+    public bool WideReferenceBrackets=>Text.Any(c=>c is >= '\u3000' and <= '\u9fff' or >= '\uf900' and <= '\ufaff');
+    public string ReferenceOpening=>WideReferenceBrackets?"（":" (";
+    public string ReferenceSeparator=>WideReferenceBrackets?"；":"; ";
+    public string ReferenceClosing=>WideReferenceBrackets?"）":")";
+    public string ReferenceText=>References.Count==0?"":ReferenceOpening+string.Join(ReferenceSeparator,References.Select(r=>r.Text))+ReferenceClosing;
+}
 public sealed record FullTextPage(string Id,string Text,IReadOnlyList<FullTextPiece> Pieces,IReadOnlyList<FullTextIssue> Issues,
     IReadOnlyList<string> ObjectIds,IReadOnlyList<string> EdgeIds,int BlockedPoints);
 public sealed record FullTextResult(string Text,IReadOnlyList<FullTextPiece> Pieces,IReadOnlyList<FullTextIssue> Issues,
@@ -17,6 +26,7 @@ public sealed record FullTextResult(string Text,IReadOnlyList<FullTextPiece> Pie
 // A read-only projection of the graph. Relation meaning and manuscript participation are independent.
 public static class GraphFullText
 {
+    public const string ReferenceDirectionHint="Reference arrows must point toward the body proposition. Choose one direction.";
     public static bool IsReference(Relation edge)=>edge.TextRole=="reference";
     sealed record Item(string Id,string Kind,string Name,string Body,string Parent,double X,double Y);
     sealed record Link(string From,string To,Relation Edge);
@@ -84,6 +94,24 @@ public static class GraphFullText
         }while(merged);
         // Relations are appended in creation order and that order survives save/load and Undo.
         // GroupBy preserves the first surviving Body connection of each component.
+        var referenceIssues=new List<FullTextIssue>();
+        var references=new Dictionary<string,List<FullTextReference>>();
+        foreach(var edge in doc.Edges.Where(IsReference))
+        {
+            if(edge.Direction=="both"){
+                referenceIssues.Add(new("reference-direction",ReferenceDirectionHint,edge.Id));continue;
+            }
+            var source=edge.Direction=="reverse"?edge.To:edge.From;
+            var target=edge.Direction=="reverse"?edge.From:edge.To;
+            if(source==target||!items.TryGetValue(source,out var citation)||citation.Kind!="point"||!items.TryGetValue(target,out var cited)||cited.Kind!="point"){
+                referenceIssues.Add(new("reference-endpoints","A parenthetical reference must connect two different propositions.",edge.Id));continue;
+            }
+            if(string.IsNullOrWhiteSpace(citation.Body)){
+                referenceIssues.Add(new("reference-empty","The reference proposition has no text to display in parentheses.",source));continue;
+            }
+            if(!references.TryGetValue(target,out var list))references[target]=list=[];
+            if(list.All(r=>r.NodeId!=source))list.Add(new(source,citation.Body.Trim(),edge.Id));
+        }
         var allPages=bodyEdges.GroupBy(e=>Component(e.From)).Select(g=>BuildPage(g.ToArray())).ToArray();
         var pages=allPages.Where(p=>p.ObjectIds.Any(id=>items[id].Kind=="point")).ToArray();
         var unresolvedDirections=doc.Edges.Where(e=>!IsReference(e)&&e.Direction=="both")
@@ -91,10 +119,11 @@ public static class GraphFullText
         var pointComponents=endpoints.Where(id=>items[id].Kind=="point").Select(Component).ToHashSet();
         var containerIssues=containers.Where(c=>pointComponents.Contains(Component(c.Key))&&c.Value.Select(Component).Distinct().Skip(1).Any())
             .Select(c=>new FullTextIssue("container-pages","“"+items[c.Key].Name+"” contains separate Body structures. Its outline connection cannot select a single manuscript; connect the member structures to continue them together.",c.Key));
-        var generalIssues=unresolvedDirections.Concat(containerIssues).Concat(allPages.Except(pages).SelectMany(p=>p.Issues)).ToArray();
+        var generalIssues=unresolvedDirections.Concat(containerIssues).Concat(referenceIssues).Concat(allPages.Except(pages).SelectMany(p=>p.Issues)).ToArray();
+        var displayedReferences=pages.SelectMany(p=>p.Pieces).SelectMany(p=>p.References).Select(r=>r.NodeId).ToHashSet();
         return new(string.Join("\f",pages.Select(p=>p.Text)),pages.SelectMany(p=>p.Pieces).ToArray(),
             generalIssues.Concat(pages.SelectMany(p=>p.Issues)).ToArray(),
-            doc.Nodes.Count(n=>n.Kind=="point"&&!endpoints.Contains(n.Id)),doc.Edges.Count(IsReference),pages.Sum(p=>p.BlockedPoints)){Pages=pages,GeneralIssues=generalIssues};
+            doc.Nodes.Count(n=>n.Kind=="point"&&!endpoints.Contains(n.Id)&&!displayedReferences.Contains(n.Id)),doc.Edges.Count(IsReference),pages.Sum(p=>p.BlockedPoints)){Pages=pages,GeneralIssues=generalIssues};
 
         FullTextPage BuildPage(Relation[] pageEdges)
         {
@@ -221,14 +250,14 @@ public static class GraphFullText
             var path=Path(item.Id);string? frame=path.LastOrDefault(id=>items[id].Kind=="frame"),circle=path.LastOrDefault(id=>items[id].Kind=="circle");
             string separator=pieces.Count==0?"":new string('\n',pendingBreak);
             if(separator.Length==0&&pieces.Count>0&&NeedsSpace(pieces[^1].Text[^1],body[0]))separator=" ";
-            pieces.Add(new(item.Id,body,separator,frame,circle));pendingBreak=0;
+            pieces.Add(new(item.Id,body,separator,frame,circle){References=references.GetValueOrDefault(item.Id)??[]});pendingBreak=0;
         }
         var blockedPoints=connectedPoints.Count(id=>Path(id).Any(blocked.Contains));
-        var text=new StringBuilder();foreach(var piece in pieces)text.Append(piece.Separator).Append(piece.Text);
+        var text=new StringBuilder();foreach(var piece in pieces)text.Append(piece.Separator).Append(piece.Text).Append(piece.ReferenceText);
         return new(pageEdges[0].Id,text.ToString(),pieces,issues,pageEdges.SelectMany(e=>new[]{e.From,e.To}).Distinct().ToArray(),
             pageEdges.Select(e=>e.Id).ToArray(),blockedPoints);
         }
     }
-    static bool NeedsSpace(char a,char b)=>a<256&&b<256&&!char.IsWhiteSpace(a)&&!char.IsWhiteSpace(b)&&
+    internal static bool NeedsSpace(char a,char b)=>a<256&&b<256&&!char.IsWhiteSpace(a)&&!char.IsWhiteSpace(b)&&
         (char.IsLetterOrDigit(a)||a is '.' or ',' or ';' or ':' or '!' or '?' or ')')&&(char.IsLetterOrDigit(b)||b=='(');
 }

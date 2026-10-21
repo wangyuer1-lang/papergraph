@@ -5,17 +5,31 @@
     <AssemblyName>papergraph</AssemblyName><RootNamespace>Papergraph</RootNamespace>
     <!-- Shared canvas intentionally hides Control.Bounds and ContextRequested. -->
     <NoWarn>$(NoWarn);CS0108</NoWarn>
-    <Version>0.15.0-preview.7</Version><DefineConstants>$(DefineConstants);CROSS_PLATFORM</DefineConstants>
+    <Version>0.16.0-preview.8</Version><DefineConstants>$(DefineConstants);CROSS_PLATFORM</DefineConstants>
   </PropertyGroup>
   <ItemGroup>
     <PackageReference Include="Avalonia.Desktop" Version="11.3.22" />
     <PackageReference Include="Avalonia.Themes.Fluent" Version="11.3.22" />
     <PackageReference Include="Avalonia.Fonts.Inter" Version="11.3.22" />
     <Compile Include="../Graph*.cs" Exclude="../*Tests.cs" Link="Shared/%(Filename)%(Extension)" />
+    <Compile Include="../FullTextEditBuffer.cs" Link="Shared/FullTextEditBuffer.cs" />
     <Compile Include="../AgentLibraryTests.cs;../SpacingTests.cs;../CaptionLayoutTests.cs;../RingConnectionTests.cs" Link="Tests/%(Filename)%(Extension)" />
     <Compile Include="../ThemeSymbols.cs;../TestEvidence.cs;../PathIdentity.cs;../CaptionLayout.cs;../AgentBridge.cs;../AgentGraphEdit.cs;../MainWindow.Agent*.cs;../TextStatistics.cs" Link="Shared/%(Filename)%(Extension)" />
+    <Compile Include="../LanSync*.cs;../MainWindow.LanSync.cs" Link="Sync/%(Filename)%(Extension)" />
+    <Compile Include="../BluetoothSync.cs" Link="Sync/BluetoothSync.cs" />
     <EmbeddedResource Include="../Locales/*.json" LogicalName="Papergraph.Locales.%(Filename)%(Extension)" />
     <EmbeddedResource Include="../app.ico" LogicalName="Papergraph.ApplicationIcon.ico" />
     <EmbeddedResource Include="Assets/Papergraph.icns" LogicalName="Papergraph.ApplicationIcon.icns" />
   </ItemGroup>
+  <Target Name="BuildBluetoothRadio" BeforeTargets="CoreCompile" Condition="$([MSBuild]::IsOSPlatform('OSX'))">
+    <PropertyGroup><BluetoothArch Condition="'$(RuntimeIdentifier)' == 'osx-x64'">x64</BluetoothArch><BluetoothArch Condition="'$(BluetoothArch)' == ''">arm64</BluetoothArch></PropertyGroup>
+    <Exec Command="bash &quot;$(MSBuildProjectDirectory)/../scripts/build-macos-bluetooth.sh&quot; &quot;$(MSBuildProjectDirectory)/$(IntermediateOutputPath)bluetooth&quot; $(BluetoothArch)" />
+
+  </Target>
+  <Target Name="CopyBluetoothRadio" AfterTargets="Build" Condition="$([MSBuild]::IsOSPlatform('OSX'))">
+    <Copy SourceFiles="$(IntermediateOutputPath)bluetooth/libPapergraphBluetooth.dylib" DestinationFolder="$(TargetDir)" />
+  </Target>
+  <Target Name="PublishBluetoothRadio" AfterTargets="Publish" Condition="$([MSBuild]::IsOSPlatform('OSX'))">
+    <Copy SourceFiles="$(IntermediateOutputPath)bluetooth/libPapergraphBluetooth.dylib" DestinationFolder="$(PublishDir)" />
+  </Target>
 </Project>

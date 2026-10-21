@@ -9,7 +9,8 @@ namespace Papergraph;
 public abstract class LibraryRow : INotifyPropertyChanged
 {
     string title=""; bool selected,expanded=true;
-    public string Title {get=>title;set{title=value;Changed(nameof(Title));}}
+    public string Title {get=>title;set{title=value;Changed(nameof(Title));Changed(nameof(DisplayTitle));Changed("AgentLockAction");}}
+    public virtual string DisplayTitle=>Title;
     public bool IsSelected {get=>selected;set{selected=value;Changed(nameof(IsSelected));}}
     public bool IsExpanded {get=>expanded;set{expanded=value;Changed(nameof(IsExpanded));}}
     public event PropertyChangedEventHandler? PropertyChanged;
@@ -17,7 +18,11 @@ public abstract class LibraryRow : INotifyPropertyChanged
 }
 public sealed class GraphEntry : LibraryRow
 {
-    public GraphEntry(string path,string title){Path=path;Title=title;}
+    public GraphEntry(string path,string title,bool agentReadOnly=false){Path=path;Title=title;AgentReadOnly=agentReadOnly;}
+    bool agentReadOnly;
+    public bool AgentReadOnly {get=>agentReadOnly;set{agentReadOnly=value;Changed(nameof(AgentReadOnly));Changed(nameof(DisplayTitle));Changed(nameof(AgentLockAction));}}
+    public override string DisplayTitle=>AgentReadOnly?Localization.Text("AI read-only")+" · "+Title:Title;
+    public string AgentLockAction=>Localization.Text(AgentReadOnly?"AI read-only · Click to unlock":"AI edits allowed · Click to lock")+" · "+Title;
     public string Path {get;}
     public string CategoryId {get;set;}="";
 }

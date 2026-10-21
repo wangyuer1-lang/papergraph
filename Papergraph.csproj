@@ -9,12 +9,13 @@
     <Product>papergraph</Product>
     <Title>papergraph</Title>
     <RootNamespace>Papergraph</RootNamespace>
-    <Version>0.15.0-preview.7</Version>
+    <Version>0.16.0-preview.8</Version>
     <ApplicationManifest>app.manifest</ApplicationManifest>
     <ApplicationIcon>app.ico</ApplicationIcon>
   </PropertyGroup>
   <ItemGroup>
     <Compile Remove="Mac/**/*.cs" />
+    <Compile Remove="Mobile/**/*.cs;Android/**/*.cs" />
     <None Remove="Mac/bin/**;Mac/obj/**" />
     <EmbeddedResource Include="Locales/*.json" />
   </ItemGroup>

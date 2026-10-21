@@ -13,6 +13,7 @@ public partial class MainWindow
 {
     readonly ObservableCollection<GraphEntry> library=[];
     readonly ObservableCollection<GraphCategory> categoryRows=[];
+    readonly ObservableCollection<LibraryRow> libraryRows=[];
     GraphLibraryCatalog catalog=new();
     bool updatingLibrary;
     string treeActivePath="";
@@ -28,18 +29,19 @@ public partial class MainWindow
         try{var manifest=Path.Combine(dataDir,"graphs.json");if(File.Exists(manifest))paths.AddRange(JsonSerializer.Deserialize<string[]>(File.ReadAllText(manifest))??[]);}catch{}
         foreach(var path in paths.Distinct(StringComparer.OrdinalIgnoreCase))
         {
-            try{if(File.Exists(path)&&!SamePath(path,file)){var saved=GraphDocument.Parse(File.ReadAllText(path));library.Add(new(Path.GetFullPath(path),DisplayTitle(saved.Title)));}}catch{}
+            try{if(File.Exists(path)&&!SamePath(path,file)){var saved=GraphDocument.Parse(File.ReadAllText(path));library.Add(new(Path.GetFullPath(path),DisplayTitle(saved.Title),saved.AgentReadOnly));}}catch{}
         }
-        library.Insert(0,new(Path.GetFullPath(file),DisplayTitle(doc.Title)));
+        library.Insert(0,new(Path.GetFullPath(file),DisplayTitle(doc.Title),doc.AgentReadOnly));
         try{if(File.Exists(CatalogPath))catalog=GraphLibraryCatalog.Parse(File.ReadAllText(CatalogPath));}
         catch(Exception ex){Notify(Localization.Text("Could not load categories; original file kept: ")+ex.Message);}
-        GraphTree.ItemsSource=categoryRows;RefreshLibraryTree(true);
+        GraphTree.ItemsSource=libraryRows;RefreshLibraryTree(true);
         NewGraphButton.Click+=(s,e)=>NewGraphInCategory((GraphTree.SelectedItem as GraphCategory)?.Id??CurrentGraph.CategoryId);
         NewCategoryButton.Click+=(s,e)=>{var name=Ask(Localization.Text("New category"),"");if(name!=null)LibraryUi("createCategory",new{title=name});};
         GraphTree.SelectedItemChanged+=(s,e)=>{if(!updatingLibrary&&e.NewValue is GraphEntry entry)SwitchGraph(entry.Path);};
-        GraphTree.MouseDoubleClick+=(s,e)=>{if(LibraryHit(e.OriginalSource) is GraphEntry){DocumentTitleBox.Focus();DocumentTitleBox.SelectAll();e.Handled=true;}};
+        GraphTree.MouseDoubleClick+=(s,e)=>{if(!IsGraphLockControl(e.OriginalSource)&&LibraryHit(e.OriginalSource) is GraphEntry){DocumentTitleBox.Focus();DocumentTitleBox.SelectAll();e.Handled=true;}};
         GraphTree.PreviewKeyDown+=(s,e)=>
         {
+            if(IsGraphLockControl(e.OriginalSource))return;
             if(e.Key==Key.F2){RenameLibraryRow(GraphTree.SelectedItem);e.Handled=true;}
             else if(e.Key==Key.Delete&&GraphTree.SelectedItem is GraphEntry entry){DeleteGraph(entry.Path);e.Handled=true;}
         };
@@ -55,8 +57,9 @@ public partial class MainWindow
             else if(row is GraphEntry entry)
             {
                 LocalizedItem(menu,"Open",()=>SwitchGraph(entry.Path));LocalizedItem(menu,"Rename",()=>RenameLibraryRow(entry),"F2");
+                var protection=LocalizedItem(menu,"AI read-only",()=>SetGraphAgentReadOnly(entry.Path,!entry.AgentReadOnly));protection.IsCheckable=true;protection.IsChecked=entry.AgentReadOnly;protection.ToolTip=Localization.Text("Agents can read this graph but cannot edit it. You can still edit it.");
                 var move=new MenuItem{Header=Localization.Text("Move to category")};
-                foreach(var c in categoryRows){var id=c.Id;var option=Item(move,c.Title,()=>LibraryUi("moveGraphs",new{documentPaths=new[]{entry.Path},categoryId=id.Length==0?null:id}));option.IsCheckable=true;option.IsChecked=entry.CategoryId==id;}menu.Items.Add(move);
+                foreach(var c in categoryRows){var id=c.Id;var option=Item(move,id.Length==0?Localization.Text("No category"):c.Title,()=>LibraryUi("moveGraphs",new{documentPaths=new[]{entry.Path},categoryId=id.Length==0?null:id}));option.IsCheckable=true;option.IsChecked=entry.CategoryId==id;}menu.Items.Add(move);
                 LocalizedItem(menu,"Save as…",()=>{SwitchGraph(entry.Path);if(SamePath(file,entry.Path))SaveCopy();});
                 LocalizedItem(menu,"Show in folder",()=>{SwitchGraph(entry.Path);if(SamePath(file,entry.Path))ShowGraphFolder();});
                 LocalizedItem(menu,"Delete graph",()=>DeleteGraph(entry.Path),"Del");
@@ -64,7 +67,7 @@ public partial class MainWindow
             menu.IsOpen=true;e.Handled=true;
         };
         Point dragStart=default;GraphEntry? dragEntry=null;
-        GraphTree.PreviewMouseLeftButtonDown+=(s,e)=>{dragStart=e.GetPosition(GraphTree);dragEntry=LibraryHit(e.OriginalSource) as GraphEntry;};
+        GraphTree.PreviewMouseLeftButtonDown+=(s,e)=>{if(IsGraphLockControl(e.OriginalSource)){dragEntry=null;return;}dragStart=e.GetPosition(GraphTree);dragEntry=LibraryHit(e.OriginalSource) as GraphEntry;};
         GraphTree.PreviewMouseMove+=(s,e)=>{if(e.LeftButton==MouseButtonState.Pressed&&dragEntry!=null&&(e.GetPosition(GraphTree)-dragStart).Length>8){var entry=dragEntry;dragEntry=null;DragDrop.DoDragDrop(GraphTree,new DataObject("Papergraph.LibraryGraph",entry.Path),DragDropEffects.Move);}};
         GraphTree.DragOver+=(s,e)=>{e.Effects=e.Data.GetDataPresent("Papergraph.LibraryGraph")&&LibraryHit(e.OriginalSource) is GraphCategory?DragDropEffects.Move:DragDropEffects.None;e.Handled=true;};
         GraphTree.Drop+=(s,e)=>{if(e.Data.GetData("Papergraph.LibraryGraph") is string path&&LibraryHit(e.OriginalSource) is GraphCategory c)LibraryUi("moveGraphs",new{documentPaths=new[]{path},categoryId=c.Id.Length==0?null:c.Id});e.Handled=true;};
@@ -84,6 +87,18 @@ public partial class MainWindow
         try{var request=JsonSerializer.SerializeToNode(fields)!.AsObject();request["operation"]=operation;request["requestId"]=Guid.NewGuid().ToString();request["expectedLibraryRevision"]=catalog.Revision();AgentManageCategories(JsonSerializer.SerializeToElement(request),operation);}
         catch(Exception ex){Notify(Localization.Text("Could not update categories: ")+ex.Message);}
     }
+    void GraphProtectionButtonClick(object sender,RoutedEventArgs e)
+    {
+        e.Handled=true;
+        if(sender is Button {DataContext:GraphEntry entry})
+            try{SetGraphAgentReadOnly(entry.Path,!entry.AgentReadOnly);}catch(Exception ex){Notify(ex.Message);}
+    }
+    static bool IsGraphLockControl(object? source)
+    {
+        var element=source as DependencyObject;
+        while(element!=null){if(element is Button {Tag:"GraphAgentLock"})return true;element=VisualTreeHelper.GetParent(element);}
+        return false;
+    }
     void NewGraphInCategory(string id)
     {
         var before=file;NewDocument();if(!SamePath(before,file)&&id.Length>0)LibraryUi("moveGraphs",new{documentPaths=new[]{Path.GetFullPath(file)},categoryId=id});
@@ -95,22 +110,27 @@ public partial class MainWindow
         {
             reveal|=treeActivePath.Length==0||!SamePath(treeActivePath,file);treeActivePath=file;
             var selectedCategory=reveal?null:(GraphTree.SelectedItem as GraphCategory)?.Id;
+            if(selectedCategory!=null&&!catalog.Categories.Any(c=>c.Id==selectedCategory))selectedCategory=null;
             var expanded=categoryRows.ToDictionary(c=>c.Id,c=>c.IsExpanded);
             categoryRows.Clear();
             foreach(var c in catalog.Categories)categoryRows.Add(new(c.Id,c.Name){IsExpanded=expanded.GetValueOrDefault(c.Id,!collapsedCategories.Contains(c.Id))});
-            categoryRows.Add(new("",Localization.Text("Unfiled")){IsExpanded=expanded.GetValueOrDefault("",!collapsedCategories.Contains(""))});
+            categoryRows.Add(new("",Localization.Text("No category")){IsExpanded=expanded.GetValueOrDefault("",!collapsedCategories.Contains(""))});
             foreach(var entry in library){entry.CategoryId=catalog.Assignments.GetValueOrDefault(entry.Path,"");entry.IsSelected=false;var category=categoryRows.FirstOrDefault(c=>c.Id==entry.CategoryId)??categoryRows.Last();category.Graphs.Add(entry);if(SamePath(entry.Path,file)){if(reveal)category.IsExpanded=true;entry.IsSelected=selectedCategory==null;}}
             foreach(var category in categoryRows)
             {
                 category.IsSelected=category.Id==selectedCategory;
                 category.PropertyChanged+=(s,e)=>{if(!updatingLibrary&&e.PropertyName==nameof(GraphCategory.IsExpanded)){if(category.IsExpanded)collapsedCategories.Remove(category.Id);else collapsedCategories.Add(category.Id);SaveViewSettings();}};
             }
+            // Unassigned graphs are ordinary root rows, not a special folder.
+            libraryRows.Clear();
+            foreach(var category in categoryRows.Where(c=>c.Id.Length>0))libraryRows.Add(category);
+            foreach(var entry in categoryRows.Last().Graphs)libraryRows.Add(entry);
         }
         finally{updatingLibrary=false;}
     }
     void UpdateLibraryTitle()
     {
-        var entry=library.FirstOrDefault(item=>SamePath(item.Path,file));if(entry!=null)entry.Title=DisplayTitle(doc.Title);
+        var entry=library.FirstOrDefault(item=>SamePath(item.Path,file));if(entry!=null){entry.Title=DisplayTitle(doc.Title);entry.AgentReadOnly=doc.AgentReadOnly;}
     }
     void TrackCurrentGraph()
     {
@@ -119,7 +139,7 @@ public partial class MainWindow
         try
         {
             var entry=library.FirstOrDefault(item=>SamePath(item.Path,file));
-            if(entry==null){entry=new(Path.GetFullPath(file),DisplayTitle(doc.Title));library.Add(entry);}else entry.Title=DisplayTitle(doc.Title);
+            if(entry==null){entry=new(Path.GetFullPath(file),DisplayTitle(doc.Title),doc.AgentReadOnly);library.Add(entry);}else {entry.Title=DisplayTitle(doc.Title);entry.AgentReadOnly=doc.AgentReadOnly;}
             var json=JsonSerializer.Serialize(library.Select(item=>item.Path).ToArray());var manifest=Path.Combine(dataDir,"graphs.json");
             try{if(!File.Exists(manifest)||File.ReadAllText(manifest)!=json){var pending=manifest+".tmp";File.WriteAllText(pending,json);File.Move(pending,manifest,true);}}catch{}
         }

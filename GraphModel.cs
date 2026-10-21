@@ -4,10 +4,13 @@ using System.Text.Json;
 using System.Text.RegularExpressions;
 namespace Papergraph;
 
-public class Proposition : IGraphNotes
+public class Proposition : IGraphNotes, IGraphBody
 {
     public string Id {get;set;}=Guid.NewGuid().ToString("N");
-    public string Title {get;set;}="";
+    string title="";
+    public string Title {get=>title;set{if(value!=null)BodyColors=GraphTextColors.Adjust(title,value,BodyColors);title=value!;}}
+    [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+    public List<BodyTextColor>? BodyColors {get;set;}
     public string Caption {get;set;}="";
     public string Note {get;set;}="";
     public List<NotePage> AdditionalNotes {get;set;}=[new(),new(),new()];
@@ -38,10 +41,13 @@ public class Relation : IGraphNotes
     [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
     public string? MarkColor {get;set;}
 }
-public class Region : IGraphNotes
+public class Region : IGraphNotes, IGraphBody
 {
     public string Id {get;set;}=Guid.NewGuid().ToString("N");
-    public string Title {get;set;}="Untitled □";
+    string title="Untitled □";
+    public string Title {get=>title;set{if(value!=null)BodyColors=GraphTextColors.Adjust(title,value,BodyColors);title=value!;}}
+    [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+    public List<BodyTextColor>? BodyColors {get;set;}
     public string Caption {get;set;}="";
     public string Note {get;set;}="";
     public List<NotePage> AdditionalNotes {get;set;}=[new(),new(),new()];
@@ -56,6 +62,8 @@ public class Region : IGraphNotes
 }
 public class GraphDocument
 {
+    [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingDefault)]
+    public bool AgentReadOnly {get;set;}
     public int Version {get;set;}=1;
     public string Title {get;set;}="Untitled paper";
     public List<Proposition> Nodes {get;set;}=[];
@@ -78,9 +86,11 @@ public class GraphDocument
         foreach(var item in Nodes.Cast<IGraphNotes>().Concat(Edges).Concat(Regions))if(item!=null)GraphNotes.Validate(item);
         var ids=new HashSet<string>();
         foreach(var n in Nodes) if(n==null||string.IsNullOrEmpty(n.Id)||!ids.Add(n.Id)||n.Title==null||n.Caption==null||n.Note==null||n.Color==null||!Regex.IsMatch(n.Color,"^#[0-9a-fA-F]{6}$")||!(n.Kind=="point"||n.Kind=="circle")||!double.IsFinite(n.X)||!double.IsFinite(n.Y)||Math.Abs(n.X)>1e7||Math.Abs(n.Y)>1e7) throw new InvalidDataException("Invalid proposition data.");
+        foreach(var n in Nodes)GraphTextColors.Validate(n.Title,n.BodyColors);
         foreach(var n in Nodes) { var seen=new HashSet<string>{n.Id}; var p=n.Parent; while(p!=null) { var a=Node(p); if(a==null||a.Kind!="circle"||!seen.Add(p)) throw new InvalidDataException("Invalid ◎ hierarchy."); p=a.Parent; } }
         foreach(var e in Edges) if(e==null||string.IsNullOrEmpty(e.Id)||!ids.Add(e.Id)||!HasEndpoint(e.From)||!HasEndpoint(e.To)||e.From==e.To||string.IsNullOrWhiteSpace(e.Label)||e.Caption==null||e.Note==null||!(e.Direction is "forward" or "reverse" or "both")) throw new InvalidDataException("Invalid relation data.");
         foreach(var r in Regions) if(r==null||string.IsNullOrEmpty(r.Id)||!ids.Add(r.Id)||r.Title==null||r.Caption==null||r.Note==null||r.Members==null||r.Parent!=null&&Node(r.Parent)?.Kind!="circle"||!double.IsFinite(r.X)||!double.IsFinite(r.Y)||!double.IsFinite(r.Width)||!double.IsFinite(r.Height)||Math.Abs(r.X)>1e7||Math.Abs(r.Y)>1e7||r.Width<40||r.Height<40||r.Width>1e7||r.Height>1e7||!r.IsAbsolute&&(r.Members.Count==0||r.Members.Distinct().Count()!=r.Members.Count||r.Members.Any(id=>Node(id)==null||Node(id)!.Parent!=r.Parent))) throw new InvalidDataException("Invalid □ data.");
+        foreach(var r in Regions)GraphTextColors.Validate(r.Title,r.BodyColors);
     }
     public bool MaterializeRegions()
     {

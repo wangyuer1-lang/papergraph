@@ -33,7 +33,7 @@ public partial class MainWindow
     void LibraryUi(string operation,object fields){var input=JsonSerializer.SerializeToElement(fields);var values=input.EnumerateObject().ToDictionary(p=>p.Name,p=>(object?)p.Value.Clone());values["operation"]=operation;values["requestId"]=Guid.NewGuid().ToString();values["expectedLibraryRevision"]=catalog.Revision();HandleAgent(JsonSerializer.SerializeToElement(values));}
     async Task MoveCategory()
     {
-        var title=await Ask("Move to category (blank for Unfiled)",catalog.Categories.FirstOrDefault(c=>c.Id==catalog.Assignments.GetValueOrDefault(file))?.Name??"");if(title==null)return;
+        var title=await Ask("Move to category (blank for no category)",catalog.Categories.FirstOrDefault(c=>c.Id==catalog.Assignments.GetValueOrDefault(file))?.Name??"");if(title==null)return;
         var target=catalog.Categories.FirstOrDefault(c=>c.Name==title);if(title.Length>0&&target==null){Notify("Create that category first");return;}Safe(()=>LibraryUi("moveGraphs",new{documentPaths=new[]{file},categoryId=target?.Id}));
     }
     Task DeleteGraph()

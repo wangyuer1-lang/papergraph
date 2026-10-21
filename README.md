@@ -13,13 +13,15 @@ Available for Windows, with a macOS preview. An optional local agent interface l
 | Platform | Architecture | Release | Download |
 | --- | --- | --- | --- |
 | Windows | x64 | Stable · v0.14.3 | [Windows stable](https://github.com/wangyuer1-lang/papergraph/releases/latest) |
-| Windows | x64 | Preview · v0.15.0-preview.7 | [Windows preview](https://github.com/wangyuer1-lang/papergraph/releases/download/v0.15.0-preview.7/Papergraph-0.15.0-preview.7-windows-x64.zip) |
-| macOS | Apple Silicon (M series) | Preview · v0.15.0-preview.7 | [macOS for Apple Silicon](https://github.com/wangyuer1-lang/papergraph/releases/download/v0.15.0-preview.7/Papergraph-0.15.0-preview.7-macos-arm64.zip) |
-| macOS | Intel | Preview · v0.15.0-preview.7 | [macOS for Intel](https://github.com/wangyuer1-lang/papergraph/releases/download/v0.15.0-preview.7/Papergraph-0.15.0-preview.7-macos-x64.zip) |
+| Windows | x64 | Preview · v0.16.0-preview.8 | [Windows preview](https://github.com/wangyuer1-lang/papergraph/releases/download/v0.16.0-preview.8/Papergraph-0.16.0-preview.8-windows-x64.zip) |
+| macOS | Apple Silicon (M series) | Preview · v0.16.0-preview.8 | [macOS for Apple Silicon](https://github.com/wangyuer1-lang/papergraph/releases/download/v0.16.0-preview.8/Papergraph-0.16.0-preview.8-macos-arm64.zip) |
+| macOS | Intel | Preview · v0.16.0-preview.8 | [macOS for Intel](https://github.com/wangyuer1-lang/papergraph/releases/download/v0.16.0-preview.8/Papergraph-0.16.0-preview.8-macos-x64.zip) |
 
 **Windows:** extract the ZIP into a writable folder and open `papergraph.exe`. **macOS:** requires macOS 14 or newer; extract the ZIP and move `Papergraph.app` to Applications. All downloads include the .NET runtime.
 
-The macOS preview is ad-hoc signed and has not been notarized by Apple. The Intel package has not been tested on Intel hardware. See the [macOS guide](docs/macos.md#download-and-install) for first-launch instructions and [release notes](https://github.com/wangyuer1-lang/papergraph/releases/tag/v0.15.0-preview.7) for preview details.
+The macOS preview is ad-hoc signed and has not been notarized by Apple. The Intel package has not been tested on Intel hardware. See the [macOS guide](docs/macos.md#download-and-install) for first-launch instructions and [release notes](https://github.com/wangyuer1-lang/papergraph/releases/tag/v0.16.0-preview.8) for preview details.
+
+**This release updates Windows and macOS only. It contains no Android source or APK.**
 
 ![Papergraph workflow: write propositions, connect an argument, inspect evidence and collaborate with an agent](docs/quickstart.svg)
 
@@ -37,10 +39,12 @@ Double-click a frame or group to enter its internal board, then return to the ov
 ## Features
 
 - **Graph editing:** connect propositions, organize frames and groups, copy selections across graphs, arrange connected content and mark objects with review colors.
-- **Live manuscript:** view text below the graph as you write. Directed Body relations determine reading order; Reference relations and isolated points stay out of the manuscript. Ordering checks identify ambiguity and cycles. Click a passage to locate its source proposition.
+- **Live manuscript:** edit text directly below the graph, with changes saved to the source proposition. Directed Body relations determine reading order. Single-headed Reference arrows point toward the body proposition and append the source text in parentheses, automatically highlighted with a lemon background in both themes. Repeated citations update together; generated separators and cross-proposition edits are protected. Ordering checks identify ambiguity and cycles.
+- **Text colors:** format selected proposition text in red, orange, green, blue or purple. Citation background highlighting preserves these font colors.
+- **Manual LAN sync:** pair two computers on the same network, compare changes and confirm synchronization on both sides. No account or server is needed; conflicting edits can be kept as separate graphs. See [sync instructions](docs/usage.md#local-network-sync).
 - **Word and character counts:** track the current manuscript page or selected text, including Chinese, Japanese and mixed-language writing.
 - **Four Notes pages:** keep supporting material separate from manuscript text. Page 1 is reserved for the author; agents write to pages 2–4.
-- **Library organization:** manage graphs in sidebar categories, with autosave, backup files and Markdown export.
+- **Library organization:** manage graphs in sidebar categories, with autosave, backup files and Markdown export. Unassigned graphs appear at the sidebar root; there is no fixed Unfiled category.
 - **Interface preferences:** choose light or dark mode and English, Simplified Chinese or Japanese through **View → Language**. Language changes preserve document content; see [localization details](docs/localization.md).
 
 ## Getting started
@@ -49,13 +53,13 @@ Double-click a frame or group to enter its internal board, then return to the ov
 2. Double-click empty canvas to add a proposition. Select it to edit its text and notes in the right panel.
 3. Drag its connection handle to another object. Select the relation to edit its meaning, direction and notes.
 4. Organize related propositions into frames or groups. Use **Fit all / F** to see the current board.
-5. Open **Full text** to review the manuscript and follow passages back to their source propositions.
+5. Open **Full text** to edit the manuscript directly; each edit updates its source proposition.
 
 | Action | Windows | macOS |
 | --- | --- | --- |
-| Select an area | Right-drag empty canvas | Drag empty canvas with **Select (V)** |
-| Pan | Left-drag empty canvas | Two-finger scroll or **Pan (H)** |
-| Zoom | Mouse wheel | Pinch, Command-scroll or the **− / +** buttons |
+| Select an area | Right-drag empty canvas | Shift-drag or right-drag empty canvas |
+| Pan | Left-drag empty canvas | Left-drag empty canvas or two-finger scroll |
+| Zoom | Mouse wheel | Mouse wheel, pinch, Command-scroll or **− / +** |
 | Copy / paste | Ctrl+C / Ctrl+V | Command+C / Command+V |
 | More actions | Right-click | **Actions**, **···**, secondary click or Control-click |
 
@@ -68,6 +72,8 @@ The local interface lets an external agent read live documents, including unsave
 `addNodes` and `editGraph` support proposition, relation, frame and group edits. Other operations manage pages and categories. New graphs and complete copies open in the background by default; copying preserves content, notes, positions, colors and connections.
 
 Writes require the expected document, a fresh revision and a stable request UUID. Accepted graph-edit batches save before reporting success and can be undone in one step. Stale writes are rejected, and durable creation receipts prevent duplicate pages on retry. Notes page 1 remains reserved for the author. Page creation and switching are separate from canvas undo.
+
+Use the padlock beside a graph to make it **AI read-only**. Agents can read protected graphs but cannot modify them; human editing remains available.
 
 The interface uses a local named pipe restricted to the current user on Windows and macOS. See the [agent interface guide](Agent%20guide.md) for request formats and CLI examples.
 

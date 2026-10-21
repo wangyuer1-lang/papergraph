@@ -48,11 +48,27 @@ public partial class MainWindow
         Check(doc.Node("one")!.Title=="全文编辑の検証"&&currentFullText.Text.Contains("全文编辑の検証"),"Editing the source updates live full text");
         ToggleFullText();Save();
         Check(!PathIdentity.Same("/tmp/Library/A.papergraph","/tmp/Library/a.papergraph")&&!string.Equals(AgentBridge.PipeName("/tmp/Library"),AgentBridge.PipeName("/tmp/library")),"macOS paths and IPC identities preserve case");
+        await RunAgentProtectionTests();
+        await RunEditorInteractionTests();
         await RunInspectorEditingTests();
+        await RunTextColorTests();
         await RunParityTests();
         await RunPointerParityTests();
         await RunMacUsabilityTests();
         RunIconParityTests();
+        var beforeSync = doc.Serialize();
+        OpenLanSync();
+        Check(lanDialog != null, "The library opens the LAN sync dialog");
+        await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(()=>{},Avalonia.Threading.DispatcherPriority.Background);
+        bool syncLocked = false;
+        try { Call(new { operation="createGraph", requestId=Guid.NewGuid().ToString(), expectedDocument=file, expectedRevision=AgentProtocol.Revision(doc), title="Blocked while reviewing sync" }); }
+        catch (InvalidOperationException) { syncLocked = true; }
+        Check(syncLocked && Call(new { operation="snapshot" }).GetProperty("revision").GetString() == AgentProtocol.Revision(doc), "Sync review blocks agent writes but permits snapshots");
+        lanDialog!.UpdateLayout();
+        using(var bitmap = new RenderTargetBitmap(new PixelSize((int)lanDialog.Width, (int)lanDialog.Height), new Vector(96,96)))
+        { bitmap.Render(lanDialog); bitmap.Save(Path.Combine(dataDir,"lan-sync-dialog.png")); }
+        lanDialog.Close();
+        Check(doc.Serialize() == beforeSync, "Opening and closing sync leaves the manuscript unchanged");
         UpdateLayout();
         await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(()=>{},Avalonia.Threading.DispatcherPriority.Background);
         using(var bitmap=new RenderTargetBitmap(new PixelSize((int)Width,(int)Height),new Vector(96,96))){bitmap.Render(this);bitmap.Save(Path.Combine(dataDir,"mac-self-test.png"));}
